@@ -76,22 +76,15 @@ button,.btn{border:0;border-radius:10px;padding:11px 15px;cursor:pointer;font-we
     <h2 style="color:#0d9488;margin-bottom:4px">Akuntansi BUMDesa Berkah Mandiri Tampingan</h2>
     <p style="color:#64748b;margin-bottom:18px">Simple, rapi, Akurat</p>
     <div class="form-group">
-   <label>Username</label>
-   <input
-      id="login-user"
-      autocomplete="off"
-      placeholder="Masukkan Username">
-</div>
-
-<div class="form-group">
-   <label>Password</label>
-   <input
-      id="login-pass"
-      type="password"
-      autocomplete="new-password"
-      placeholder="Masukkan Password">
-</div>
+      <label>Username</label>
+      <input id="login-user" type="text" autocomplete="off" placeholder="Masukkan Username">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input id="login-pass" type="password" autocomplete="new-password" placeholder="Masukkan Password">
+    </div>
     <button class="btn-primary" style="width:100%" onclick="login()">Masuk</button>
+    <p style="font-size:11px;color:#64748b;margin-top:8px">Akun dikelola dari tab <b>Akun</b> di Google Sheet.</p>
     <p style="font-size:11px;color:#64748b;margin-top:14px">© 2026 Dhian Widhi A</p>
   </div>
 </div>
@@ -240,9 +233,16 @@ button,.btn{border:0;border-radius:10px;padding:11px 15px;cursor:pointer;font-we
       </section>
 
       <section id="sec-bank" class="section">
+        <div class="card no-print periode-card">
+          <div class="card-title">
+            <span>📅 Periode Aktif Bank</span>
+            <span id="periode-status-bank" class="periode-pill">Periode aktif</span>
+          </div>
+          <div class="warn-box">Tanggal mutasi bank wajib sesuai periode aktif jika kunci periode aktif dinyalakan.</div>
+        </div>
         <div class="card"><div class="card-title">Data Bank / Mutasi Rekening</div>
           <div class="grid-3">
-            <div class="form-group"><label>Tanggal</label><input type="date" id="bank-tanggal"></div>
+            <div class="form-group"><label>Tanggal</label><input type="date" id="bank-tanggal" onchange="cekTanggalBankPeriode(true)"></div>
             <div class="form-group"><label>Jenis Mutasi</label><select id="bank-jenis"><option value="SETOR">Setor ke Bank</option><option value="TARIK">Tarik dari Bank</option><option value="BUNGA">Bunga Bank</option><option value="ADMIN">Biaya Admin</option></select></div>
             <div class="form-group"><label>Nominal</label><input type="number" id="bank-nominal"></div>
           </div>
@@ -253,10 +253,17 @@ button,.btn{border:0;border-radius:10px;padding:11px 15px;cursor:pointer;font-we
       </section>
 
       <section id="sec-aset" class="section">
+        <div class="card no-print periode-card">
+          <div class="card-title">
+            <span>📅 Periode Aktif Inventaris</span>
+            <span id="periode-status-aset" class="periode-pill">Periode aktif</span>
+          </div>
+          <div class="warn-box">Tanggal pembelian aset wajib sesuai periode aktif agar penyusutan, laba rugi, dan neraca tidak kacau.</div>
+        </div>
         <div class="card"><div class="card-title">Inventaris Aset & Penyusutan</div>
           <div class="grid-3">
             <div class="form-group"><label>Nama Aset</label><input id="aset-nama"></div>
-            <div class="form-group"><label>Tanggal Beli</label><input type="date" id="aset-tanggal"></div>
+            <div class="form-group"><label>Tanggal Beli</label><input type="date" id="aset-tanggal" onchange="cekTanggalAsetPeriode(true)"></div>
             <div class="form-group"><label>Harga Perolehan</label><input type="number" id="aset-harga"></div>
             <div class="form-group"><label>Umur Ekonomis (Bulan)</label><input type="number" id="aset-umur" value="48"></div>
             <div class="form-group"><label>Nilai Sisa</label><input type="number" id="aset-sisa" value="0"></div>
@@ -387,41 +394,58 @@ function todayStr(){return new Date().toISOString().slice(0,10)}
 function monthStr(){return new Date().toISOString().slice(0,7)}
 function prevMonth(bulan){const p=bulan.split("-").map(Number);let y=p[0],m=p[1]-1;if(m===0){m=12;y--}return y+"-"+String(m).padStart(2,"0")}
 function showLoading(){$("loading").style.display="flex"} function hideLoading(){$("loading").style.display="none"}
-let state={gasUrl:DEFAULT_CONFIG.GAS_URL,transaksi:JSON.parse(localStorage.getItem("simp_trx"))||[],bank:JSON.parse(localStorage.getItem("simp_bank"))||[],aset:JSON.parse(localStorage.getItem("simp_aset"))||[],unitUsaha:JSON.parse(localStorage.getItem("simp_unit"))||["Unit Toko","Unit Jasa","Unit Wisata","Unit Simpan Pinjam"],kategoriKeluar:JSON.parse(localStorage.getItem("simp_kat"))||["Gaji","Administrasi","Transport","Listrik/Air","Operasional","Perawatan","Pembelian Aset"],profil:JSON.parse(localStorage.getItem("simp_profil"))||{nama:"BUMDes",alamat:"Alamat BUMDes",telp:"",email:"",logo:DEFAULT_CONFIG.LOGO_URL,saldoAwal:0,utang:0,modal:0,role1:"Direktur",nama1:"........................",role2:"Bendahara",nama2:"........................",role3:"Pengawas",nama3:"........................",role4:"Penasehat",nama4:"........................"}}
+let state={gasUrl:DEFAULT_CONFIG.GAS_URL,akun:JSON.parse(localStorage.getItem("simp_akun"))||[],transaksi:JSON.parse(localStorage.getItem("simp_trx"))||[],bank:JSON.parse(localStorage.getItem("simp_bank"))||[],aset:JSON.parse(localStorage.getItem("simp_aset"))||[],unitUsaha:JSON.parse(localStorage.getItem("simp_unit"))||["Unit Toko","Unit Jasa","Unit Wisata","Unit Simpan Pinjam"],kategoriKeluar:JSON.parse(localStorage.getItem("simp_kat"))||["Gaji","Administrasi","Transport","Listrik/Air","Operasional","Perawatan","Pembelian Aset"],profil:JSON.parse(localStorage.getItem("simp_profil"))||{nama:"BUMDes",alamat:"Alamat BUMDes",telp:"",email:"",logo:DEFAULT_CONFIG.LOGO_URL,saldoAwal:0,utang:0,modal:0,role1:"Direktur",nama1:"........................",role2:"Bendahara",nama2:"........................",role3:"Pengawas",nama3:"........................",role4:"Penasehat",nama4:"........................"}}
 let chartKas=null;
 let currentUserLogin = JSON.parse(localStorage.getItem("simp_current_user") || "null");
-function saveLocal(){localStorage.setItem("simp_trx",JSON.stringify(state.transaksi));localStorage.setItem("simp_bank",JSON.stringify(state.bank));localStorage.setItem("simp_aset",JSON.stringify(state.aset));localStorage.setItem("simp_unit",JSON.stringify(state.unitUsaha));localStorage.setItem("simp_kat",JSON.stringify(state.kategoriKeluar));localStorage.setItem("simp_profil",JSON.stringify(state.profil))}
+function saveLocal(){localStorage.setItem("simp_akun",JSON.stringify(state.akun||[]));localStorage.setItem("simp_trx",JSON.stringify(state.transaksi));localStorage.setItem("simp_bank",JSON.stringify(state.bank));localStorage.setItem("simp_aset",JSON.stringify(state.aset));localStorage.setItem("simp_unit",JSON.stringify(state.unitUsaha));localStorage.setItem("simp_kat",JSON.stringify(state.kategoriKeluar));localStorage.setItem("simp_profil",JSON.stringify(state.profil))}
 window.onload=function(){$("today").innerText=new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"});["trx-tanggal","bank-tanggal","aset-tanggal"].forEach(id=>$(id).value=todayStr());applyBranding(); isiDropdownPeriode(); if(typeof updatePetugasLogin==="function") updatePetugasLogin();loadProfilForm();aturKategori();renderAll();setTimeout(renderDashboardAnalitik,100);if(state.gasUrl&&state.gasUrl!=="PASTE_URL_GAS_DISINI")tarikDataDariSheets(false)}
 function applyBranding(){const logo=state.profil.logo||DEFAULT_CONFIG.LOGO_URL||"";["login-logo","logo-side","report-logo"].forEach(id=>{if($(id))$(id).src=logo});$("brand-name").innerText=state.profil.nama||"BUMDes"}
 function login(){
-  const u=$("login-user").value.trim();
-  const p=$("login-pass").value.trim();
+  const u = $("login-user").value.trim();
+  const p = $("login-pass").value.trim();
 
-  const daftarUser = {
-    admin: {password:"admin123", nama:"Administrator", role:"Admin"},
-    operator: {password:"op123", nama:"Petugas Operator", role:"Operator"},
-    viewer: {password:"view123", nama:"Viewer / Pemeriksa", role:"Viewer"}
-  };
-
-  if(daftarUser[u] && daftarUser[u].password === p){
-    currentUserLogin = {
-      username: u,
-      nama: daftarUser[u].nama,
-      role: daftarUser[u].role
-    };
-  } else if(u && p) {
-    currentUserLogin = {
-      username: u,
-      nama: u,
-      role: "User"
-    };
-  } else {
-    return alert("Login salah. Default admin/admin123 atau operator/op123");
+  if(!u || !p){
+    alert("Username dan Password wajib diisi.");
+    return;
   }
 
+  const akunList = state.akun || [];
+
+  if(!akunList.length){
+    alert(
+      "Data akun belum tersedia.
+
+" +
+      "Klik Tarik Sheets dulu atau pastikan tab Akun sudah ada di Google Sheet."
+    );
+    return;
+  }
+
+  const user = akunList.find(function(x){
+    return String(x.username || "").trim() === u &&
+           String(x.password || "").trim() === p &&
+           String(x.status || "AKTIF").toUpperCase() === "AKTIF";
+  });
+
+  if(!user){
+    alert("Username atau Password salah, atau akun tidak aktif.");
+    return;
+  }
+
+  currentUserLogin = {
+    username: user.username,
+    nama: user.nama_petugas || user.nama || user.username,
+    role: user.role || "Operator"
+  };
+
   localStorage.setItem("simp_current_user", JSON.stringify(currentUserLogin));
-  $("login-screen").style.display="none";
-  $("app").style.display="grid";
+
+  // update waktu login ke GAS, tidak mengganggu kalau gagal
+  syncToGasBackend("update_login_time", { username: currentUserLogin.username });
+
+  $("login-screen").style.display = "none";
+  $("app").style.display = "grid";
+
   updatePetugasLogin();
   renderAll();
 }
@@ -458,7 +482,7 @@ function simpanProfil(){state.profil={...state.profil,nama:$("cfg-nama").value,a
 function renderMasterList(){$("list-unit").innerHTML=state.unitUsaha.map(u=>`<li>${u} <button class="btn-danger" style="padding:2px 6px;font-size:11px" onclick="hapusUnit('${u}')">x</button></li>`).join("");$("list-kategori").innerHTML=state.kategoriKeluar.map(k=>`<li>${k} <button class="btn-danger" style="padding:2px 6px;font-size:11px" onclick="hapusKategori('${k}')">x</button></li>`).join("");aturKategori()}
 function tambahUnit(){const v=$("new-unit").value.trim();if(!v)return;state.unitUsaha.push(v);$("new-unit").value="";saveLocal();syncToGasBackend("updateMaster",{unitUsaha:state.unitUsaha,kategoriKeluar:state.kategoriKeluar});renderAll()}function tambahKategori(){const v=$("new-kategori").value.trim();if(!v)return;state.kategoriKeluar.push(v);$("new-kategori").value="";saveLocal();syncToGasBackend("updateMaster",{unitUsaha:state.unitUsaha,kategoriKeluar:state.kategoriKeluar});renderAll()}function hapusUnit(v){state.unitUsaha=state.unitUsaha.filter(x=>x!==v);saveLocal();renderAll()}function hapusKategori(v){state.kategoriKeluar=state.kategoriKeluar.filter(x=>x!==v);saveLocal();renderAll()}
 async function syncToGasBackend(action,data){if(!state.gasUrl||state.gasUrl==="PASTE_URL_GAS_DISINI")return;try{await fetch(state.gasUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,data})})}catch(e){console.error(e)}}
-async function tarikDataDariSheets(showNotif=true){if(!state.gasUrl||state.gasUrl==="PASTE_URL_GAS_DISINI"){if(showNotif)alert("URL GAS belum diganti di DEFAULT_CONFIG.");return}try{showLoading();const r=await fetch(state.gasUrl+"?action=tarikData");const res=await r.json();if(res.transaksi)state.transaksi=res.transaksi;if(res.bank)state.bank=res.bank;if(res.aset)state.aset=res.aset.map(a=>({id:a.id,nama:a.nama,tanggal_beli:a.tanggal_beli,harga:Number(a.harga||0),umur:Number(a.umur||1),sisa:Number(a.sisa||0)}));if(res.profil_sistem){let p={};res.profil_sistem.forEach(row=>p[row.Parameter_Key]=row.Value_Data);state.profil={...state.profil,...p,logo:DEFAULT_CONFIG.LOGO_URL};["saldoAwal","utang","modal"].forEach(k=>state.profil[k]=Number(state.profil[k]||0))}if(res.master){if(res.master.unitUsaha)state.unitUsaha=res.master.unitUsaha;if(res.master.kategoriKeluar)state.kategoriKeluar=res.master.kategoriKeluar}saveLocal();applyBranding();loadProfilForm();renderAll();if(showNotif)alert("Data berhasil ditarik")}catch(e){alert("Gagal tarik data: "+e.message)}finally{hideLoading()}}
+async function tarikDataDariSheets(showNotif=true){if(!state.gasUrl||state.gasUrl==="PASTE_URL_GAS_DISINI"){if(showNotif)alert("URL GAS belum diganti di DEFAULT_CONFIG.");return}try{showLoading();const r=await fetch(state.gasUrl+"?action=tarikData");const res=await r.json();if(res.akun)state.akun=res.akun;if(res.transaksi)state.transaksi=res.transaksi;if(res.bank)state.bank=res.bank;if(res.aset)state.aset=res.aset.map(a=>({id:a.id,nama:a.nama,tanggal_beli:a.tanggal_beli,harga:Number(a.harga||0),umur:Number(a.umur||1),sisa:Number(a.sisa||0)}));if(res.profil_sistem){let p={};res.profil_sistem.forEach(row=>p[row.Parameter_Key]=row.Value_Data);state.profil={...state.profil,...p,logo:DEFAULT_CONFIG.LOGO_URL};["saldoAwal","utang","modal"].forEach(k=>state.profil[k]=Number(state.profil[k]||0))}if(res.master){if(res.master.unitUsaha)state.unitUsaha=res.master.unitUsaha;if(res.master.kategoriKeluar)state.kategoriKeluar=res.master.kategoriKeluar}saveLocal();applyBranding();loadProfilForm();renderAll();if(showNotif)alert("Data berhasil ditarik")}catch(e){alert("Gagal tarik data: "+e.message)}finally{hideLoading()}}
 function backupJSON(){const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="backup-akuntansi-bumdes-simple.json";a.click()}
 
 
@@ -1546,6 +1570,154 @@ setTimeout(function(){
   setPeriodeAktif(getPeriodeAktif());
   if($("trx-tanggal")) $("trx-tanggal").value = getTanggalAwalPeriode(getPeriodeAktif());
 }, 150);
+
+
+// ======================================================
+// LOGIN KOSONG + ANTI AUTOFILL DEFAULT
+// ======================================================
+function kosongkanFormLogin(){
+  var u = $("login-user");
+  var p = $("login-pass");
+  if(u) u.value = "";
+  if(p) p.value = "";
+}
+window.addEventListener("load", function(){
+  setTimeout(kosongkanFormLogin, 300);
+  setTimeout(kosongkanFormLogin, 900);
+});
+
+
+// ======================================================
+// KUNCI PERIODE UNTUK BANK DAN INVENTARIS ASET
+// ======================================================
+function cekTanggalModulPeriode(inputId, namaModul, showAlert){
+  var el = $(inputId);
+  if(!el || !el.value) return true;
+
+  var bulanTanggal = String(el.value).slice(0,7);
+  var aktif = typeof getPeriodeAktif === "function" ? getPeriodeAktif() : monthStr();
+
+  if(kunciPeriodeAktif === "YA" && bulanTanggal !== aktif){
+    if(showAlert !== false){
+      alert(
+        "Tanggal " + namaModul + " tidak sesuai periode aktif.\n\n" +
+        "Periode aktif: " + labelBulanIndonesia(aktif) + "\n" +
+        "Tanggal dipilih: " + labelBulanIndonesia(bulanTanggal) + "\n\n" +
+        "Aplikasi akan mengembalikan tanggal ke awal periode aktif agar laporan tidak kacau."
+      );
+    }
+
+    el.value = getTanggalAwalPeriode(aktif);
+    return false;
+  }
+
+  return true;
+}
+
+function cekTanggalBankPeriode(showAlert){
+  return cekTanggalModulPeriode("bank-tanggal", "mutasi bank", showAlert);
+}
+
+function cekTanggalAsetPeriode(showAlert){
+  return cekTanggalModulPeriode("aset-tanggal", "pembelian aset", showAlert);
+}
+
+function updateInfoPeriodeBankAset(){
+  var label = "Periode aktif: " + namaPeriodeAktif();
+  ["periode-status-bank","periode-status-aset"].forEach(function(id){
+    var el = $(id);
+    if(el) el.innerText = label;
+  });
+}
+
+if(typeof setPeriodeAktif === "function" && !window.__periodeBankAsetSetWrapped){
+  window.__periodeBankAsetSetWrapped = true;
+  var _setPeriodeAktifBankAset = setPeriodeAktif;
+
+  setPeriodeAktif = function(periode){
+    _setPeriodeAktifBankAset(periode);
+
+    if(kunciPeriodeAktif === "YA"){
+      if($("bank-tanggal")){
+        var bulanBank = String($("bank-tanggal").value || "").slice(0,7);
+        if(bulanBank !== getPeriodeAktif()){
+          $("bank-tanggal").value = getTanggalAwalPeriode(getPeriodeAktif());
+        }
+      }
+
+      if($("aset-tanggal")){
+        var bulanAset = String($("aset-tanggal").value || "").slice(0,7);
+        if(bulanAset !== getPeriodeAktif()){
+          $("aset-tanggal").value = getTanggalAwalPeriode(getPeriodeAktif());
+        }
+      }
+    }
+
+    updateInfoPeriodeBankAset();
+  };
+}
+
+if(typeof simpanBank === "function" && !window.__periodeBankSaveWrapped){
+  window.__periodeBankSaveWrapped = true;
+  var _simpanBankPeriodLock = simpanBank;
+
+  simpanBank = function(){
+    if(!cekTanggalBankPeriode(true)) return;
+
+    var bulanBank = String($("bank-tanggal").value || "").slice(0,7);
+    if(kunciPeriodeAktif === "YA" && bulanBank !== getPeriodeAktif()){
+      return alert("Mutasi bank ditolak karena tidak sesuai periode aktif.");
+    }
+
+    _simpanBankPeriodLock();
+
+    if($("bank-tanggal")){
+      $("bank-tanggal").value = getTanggalAwalPeriode(getPeriodeAktif());
+    }
+  };
+}
+
+if(typeof simpanAset === "function" && !window.__periodeAsetSaveWrapped){
+  window.__periodeAsetSaveWrapped = true;
+  var _simpanAsetPeriodLock = simpanAset;
+
+  simpanAset = function(){
+    if(!cekTanggalAsetPeriode(true)) return;
+
+    var bulanAset = String($("aset-tanggal").value || "").slice(0,7);
+    if(kunciPeriodeAktif === "YA" && bulanAset !== getPeriodeAktif()){
+      return alert("Inventaris aset ditolak karena tidak sesuai periode aktif.");
+    }
+
+    _simpanAsetPeriodLock();
+
+    if($("aset-tanggal")){
+      $("aset-tanggal").value = getTanggalAwalPeriode(getPeriodeAktif());
+    }
+  };
+}
+
+if(typeof renderAll === "function" && !window.__periodeBankAsetRenderWrapped){
+  window.__periodeBankAsetRenderWrapped = true;
+  var _renderAllBankAsetPeriod = renderAll;
+
+  renderAll = function(){
+    _renderAllBankAsetPeriod();
+    updateInfoPeriodeBankAset();
+  };
+}
+
+setTimeout(function(){
+  if(typeof getPeriodeAktif === "function"){
+    if($("bank-tanggal") && kunciPeriodeAktif === "YA"){
+      $("bank-tanggal").value = getTanggalAwalPeriode(getPeriodeAktif());
+    }
+    if($("aset-tanggal") && kunciPeriodeAktif === "YA"){
+      $("aset-tanggal").value = getTanggalAwalPeriode(getPeriodeAktif());
+    }
+    updateInfoPeriodeBankAset();
+  }
+}, 250);
 
 </script>
 </body>
