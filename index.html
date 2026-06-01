@@ -18,7 +18,7 @@ Produk digital berlisensi.
 <script>
 const DEFAULT_CONFIG = {
   GAS_URL: "https://script.google.com/macros/s/AKfycbwagwTPRHVSNYstI6vabZZ2YovqFoXzJwBtqsuBEl2xK7awTqSbCBKfPaPC2pV6oBDW7A/exec",
-  LOGO_URL: "https://raw.githubusercontent.com/aplikasiakuntansi/bumdesaberkahmandiri/main/logo-bumdes.jpeg",
+  LOGO_URL: "https://aplikasiakuntansi.github.io/bumdesaberkahmandiri/logo-bumdes.jpeg",
   COPYRIGHT: "© 2026 Dhian Widhi A"
 };
 </script>
@@ -77,7 +77,7 @@ button,.btn{border:0;border-radius:10px;padding:11px 15px;cursor:pointer;font-we
     <p style="color:#64748b;margin-bottom:18px">Simple, rapi, Akurat</p>
     <div class="form-group">
       <label>Username</label>
-      <input id="login-user" type="text" autocomplete="off" placeholder="Masukkan Username">
+      <input id="login-user" type="text" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Masukkan Username">
     </div>
     <div class="form-group">
       <label>Password</label>
@@ -397,18 +397,60 @@ function showLoading(){$("loading").style.display="flex"} function hideLoading()
 let state={gasUrl:DEFAULT_CONFIG.GAS_URL,akun:JSON.parse(localStorage.getItem("simp_akun"))||[],transaksi:JSON.parse(localStorage.getItem("simp_trx"))||[],bank:JSON.parse(localStorage.getItem("simp_bank"))||[],aset:JSON.parse(localStorage.getItem("simp_aset"))||[],unitUsaha:JSON.parse(localStorage.getItem("simp_unit"))||["Unit Toko","Unit Jasa","Unit Wisata","Unit Simpan Pinjam"],kategoriKeluar:JSON.parse(localStorage.getItem("simp_kat"))||["Gaji","Administrasi","Transport","Listrik/Air","Operasional","Perawatan","Pembelian Aset"],profil:JSON.parse(localStorage.getItem("simp_profil"))||{nama:"BUMDes",alamat:"Alamat BUMDes",telp:"",email:"",logo:DEFAULT_CONFIG.LOGO_URL,saldoAwal:0,utang:0,modal:0,role1:"Direktur",nama1:"........................",role2:"Bendahara",nama2:"........................",role3:"Pengawas",nama3:"........................",role4:"Penasehat",nama4:"........................"}}
 
 // ======================================================
-// FIX KONFIGURASI FINAL GAS + LOGO
+// KONFIGURASI FINAL GAS + LOGO
 // ======================================================
 state.gasUrl = DEFAULT_CONFIG.GAS_URL;
 if(state.profil){
   state.profil.logo = DEFAULT_CONFIG.LOGO_URL;
 }
+localStorage.setItem("simp_profil", JSON.stringify(state.profil || {}));
+
+
+// ======================================================
+// AKUN FALLBACK AMAN JIKA FETCH GAS TERLAMBAT
+// ======================================================
+const DEFAULT_AKUN_FALLBACK = [
+  {username:"admin", password:"admin123", nama_petugas:"Rochimin", role:"Admin", status:"AKTIF"},
+  {username:"operator", password:"op123", nama_petugas:"Petugas Operator", role:"Operator", status:"AKTIF"},
+  {username:"viewer", password:"viewer123", nama_petugas:"Pemeriksa", role:"Viewer", status:"AKTIF"},
+  {username:"kepaladesa", password:"paklurah123", nama_petugas:"Drs. Abdul Mujib", role:"Kepala Desa", status:"AKTIF"},
+  {username:"bendahara", password:"ariono123", nama_petugas:"Susatyo Ariono", role:"Bendahara", status:"AKTIF"}
+];
+
+function pastikanAkunFallback(){
+  if(!state.akun || !state.akun.length){
+    state.akun = DEFAULT_AKUN_FALLBACK.slice();
+    localStorage.setItem("simp_akun", JSON.stringify(state.akun));
+  }
+}
+
+state.gasUrl = DEFAULT_CONFIG.GAS_URL;
+if(state.profil) state.profil.logo = DEFAULT_CONFIG.LOGO_URL;
+pastikanAkunFallback();
 
 let chartKas=null;
 let currentUserLogin = JSON.parse(localStorage.getItem("simp_current_user") || "null");
 function saveLocal(){localStorage.setItem("simp_akun",JSON.stringify(state.akun||[]));localStorage.setItem("simp_trx",JSON.stringify(state.transaksi));localStorage.setItem("simp_bank",JSON.stringify(state.bank));localStorage.setItem("simp_aset",JSON.stringify(state.aset));localStorage.setItem("simp_unit",JSON.stringify(state.unitUsaha));localStorage.setItem("simp_kat",JSON.stringify(state.kategoriKeluar));localStorage.setItem("simp_profil",JSON.stringify(state.profil))}
 window.onload=function(){$("today").innerText=new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"});["trx-tanggal","bank-tanggal","aset-tanggal"].forEach(id=>$(id).value=todayStr());applyBranding(); isiDropdownPeriode(); if(typeof updatePetugasLogin==="function") updatePetugasLogin();loadProfilForm();aturKategori();renderAll();setTimeout(renderDashboardAnalitik,100);if(state.gasUrl&&state.gasUrl!=="PASTE_URL_GAS_DISINI")tarikDataDariSheets(false)}
-function applyBranding(){const logo=state.profil.logo||DEFAULT_CONFIG.LOGO_URL||"";["login-logo","logo-side","report-logo"].forEach(id=>{if($(id))$(id).src=logo});$("brand-name").innerText=state.profil.nama||"BUMDes"}
+function applyBranding(){
+  const logoUtama = DEFAULT_CONFIG.LOGO_URL;
+  const logoCadangan = "https://raw.githubusercontent.com/aplikasiakuntansi/bumdesaberkahmandiri/main/logo-bumdes.jpeg";
+
+  ["login-logo","logo-side","report-logo"].forEach(function(id){
+    const img = $(id);
+    if(img){
+      img.src = logoUtama;
+      img.onerror = function(){
+        console.warn("Logo utama gagal, mencoba logo cadangan:", logoCadangan);
+        img.onerror = null;
+        img.src = logoCadangan;
+      };
+    }
+  });
+
+  $("brand-name").innerText = state.profil.nama || "BUMDes";
+}
+
 async function login(){
   const u = $("login-user").value.trim();
   const p = $("login-pass").value.trim();
@@ -418,22 +460,20 @@ async function login(){
     return;
   }
 
+  try{
+    await ambilAkunDariGas();
+  }catch(e){
+    console.warn("Fetch akun GAS gagal, pakai akun fallback/local:", e);
+  }
+
   if(!state.akun || !state.akun.length){
-    await tarikDataDariSheets(false);
+    pastikanAkunFallback();
   }
 
   const akunList = state.akun || [];
 
-  if(!akunList.length){
-    alert(
-      "Data akun belum tersedia.\n\n" +
-      "Pastikan tab Akun sudah ada di Google Sheet dan GAS sudah deploy versi terbaru."
-    );
-    return;
-  }
-
   const user = akunList.find(function(x){
-    return String(x.username || "").trim() === u &&
+    return String(x.username || "").trim().toLowerCase() === u.toLowerCase() &&
            String(x.password || "").trim() === p &&
            String(x.status || "AKTIF").toUpperCase() === "AKTIF";
   });
@@ -450,7 +490,10 @@ async function login(){
   };
 
   localStorage.setItem("simp_current_user", JSON.stringify(currentUserLogin));
-  syncToGasBackend("update_login_time", { username: currentUserLogin.username });
+
+  try{
+    syncToGasBackend("update_login_time", { username: currentUserLogin.username });
+  }catch(e){}
 
   $("login-screen").style.display = "none";
   $("app").style.display = "grid";
@@ -499,9 +542,11 @@ async function syncToGasBackend(action,data){
       headers:{"Content-Type":"text/plain;charset=utf-8"},
       body:JSON.stringify({action,data})
     });
-  }catch(e){console.error(e)}
+  }catch(e){
+    console.error(e);
+  }
 }
-async function tarikDataDariSheets(showNotif=true){if(!state.gasUrl||state.gasUrl==="PASTE_URL_GAS_DISINI"){if(showNotif)alert("URL GAS belum diganti di DEFAULT_CONFIG.");return}try{showLoading();const r=await fetch(state.gasUrl+"?action=tarikData");const res=await r.json();if(res.akun)state.akun=res.akun;if(res.transaksi)state.transaksi=res.transaksi;if(res.bank)state.bank=res.bank;if(res.aset)state.aset=res.aset.map(a=>({id:a.id,nama:a.nama,tanggal_beli:a.tanggal_beli,harga:Number(a.harga||0),umur:Number(a.umur||1),sisa:Number(a.sisa||0)}));if(res.profil_sistem){let p={};res.profil_sistem.forEach(row=>p[row.Parameter_Key]=row.Value_Data);state.profil={...state.profil,...p,logo:DEFAULT_CONFIG.LOGO_URL};["saldoAwal","utang","modal"].forEach(k=>state.profil[k]=Number(state.profil[k]||0))}if(res.master){if(res.master.unitUsaha)state.unitUsaha=res.master.unitUsaha;if(res.master.kategoriKeluar)state.kategoriKeluar=res.master.kategoriKeluar}saveLocal();applyBranding();loadProfilForm();renderAll();if(showNotif)alert("Data berhasil ditarik")}catch(e){alert("Gagal tarik data: "+e.message)}finally{hideLoading()}}
+async function tarikDataDariSheets(showNotif=true){if(!state.gasUrl||state.gasUrl==="PASTE_URL_GAS_DISINI"){if(showNotif)alert("URL GAS belum diganti di DEFAULT_CONFIG.");return}try{showLoading();const r=await fetch(state.gasUrl+"?action=tarikData");const res=await r.json();normalisasiAkunDariGas(res);if(res.transaksi)state.transaksi=res.transaksi;if(res.bank)state.bank=res.bank;if(res.aset)state.aset=res.aset.map(a=>({id:a.id,nama:a.nama,tanggal_beli:a.tanggal_beli,harga:Number(a.harga||0),umur:Number(a.umur||1),sisa:Number(a.sisa||0)}));if(res.profil_sistem){let p={};res.profil_sistem.forEach(row=>p[row.Parameter_Key]=row.Value_Data);state.profil={...state.profil,...p,logo:DEFAULT_CONFIG.LOGO_URL};["saldoAwal","utang","modal"].forEach(k=>state.profil[k]=Number(state.profil[k]||0))}if(res.master){if(res.master.unitUsaha)state.unitUsaha=res.master.unitUsaha;if(res.master.kategoriKeluar)state.kategoriKeluar=res.master.kategoriKeluar}saveLocal();applyBranding();loadProfilForm();renderAll();if(showNotif)alert("Data berhasil ditarik")}catch(e){alert("Gagal tarik data: "+e.message)}finally{hideLoading()}}
 function backupJSON(){const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="backup-akuntansi-bumdes-simple.json";a.click()}
 
 
@@ -1740,30 +1785,118 @@ setTimeout(function(){
 
 
 // ======================================================
-// LOGIN KOSONG + PASANG LOGO FINAL
+// HELPER LOGIN AKUN DARI GOOGLE SHEET
 // ======================================================
+function normalisasiAkunDariGas(res){
+  const list =
+    res.akun ||
+    res.Akun ||
+    res.accounts ||
+    res.user ||
+    res.users ||
+    [];
+
+  if(!list || !list.length){ pastikanAkunFallback(); return state.akun; }
+  state.akun = (list || []).map(function(x){
+    return {
+      username: String(x.username || x.Username || x.USERNAME || "").trim(),
+      password: String(x.password || x.Password || x.PASSWORD || "").trim(),
+      nama_petugas: String(x.nama_petugas || x.nama || x.Nama || x.NAMA || x.petugas || "").trim(),
+      role: String(x.role || x.Role || x.ROLE || "Operator").trim(),
+      status: String(x.status || x.Status || x.STATUS || "AKTIF").trim(),
+      terakhir_login: x.terakhir_login || x.terakhirLogin || ""
+    };
+  }).filter(function(x){
+    return x.username && x.password;
+  });
+
+  localStorage.setItem("simp_akun", JSON.stringify(state.akun || []));
+  return state.akun;
+}
+
+async function ambilAkunDariGas(){
+  try{
+    showLoading();
+    const r = await fetch(DEFAULT_CONFIG.GAS_URL + "?t=" + Date.now(), {
+      method: "GET",
+      cache: "no-store"
+    });
+    const res = await r.json();
+
+    if(res){
+      if(res.transaksi) state.transaksi = res.transaksi;
+      if(res.bank) state.bank = res.bank;
+      if(res.aset) state.aset = res.aset.map(a=>({
+        id:a.id,
+        nama:a.nama,
+        tanggal_beli:a.tanggal_beli,
+        harga:Number(a.harga||0),
+        umur:Number(a.umur||1),
+        sisa:Number(a.sisa||0)
+      }));
+
+      if(res.profil_sistem){
+        let p = {};
+        res.profil_sistem.forEach(row => p[row.Parameter_Key] = row.Value_Data);
+        state.profil = {...state.profil, ...p, logo:DEFAULT_CONFIG.LOGO_URL};
+        ["saldoAwal","utang","modal"].forEach(k => state.profil[k] = Number(state.profil[k] || 0));
+      }
+
+      if(res.master){
+        if(res.master.unitUsaha) state.unitUsaha = res.master.unitUsaha;
+        if(res.master.kategoriKeluar) state.kategoriKeluar = res.master.kategoriKeluar;
+      }
+
+      normalisasiAkunDariGas(res);
+      if(!state.akun || !state.akun.length) pastikanAkunFallback();
+
+      saveLocal();
+      applyBranding();
+      loadProfilForm();
+      renderAll();
+    }
+
+    return state.akun || [];
+  }catch(e){
+    console.warn("Gagal ambil akun dari GAS, pakai fallback/local:", e);
+    pastikanAkunFallback();
+    return state.akun || [];
+  }finally{
+    hideLoading();
+  }
+}
+
 function kosongkanFormLogin(){
   var u = $("login-user");
   var p = $("login-pass");
   if(u) u.value = "";
   if(p) p.value = "";
 }
-function pasangLogoAplikasi(){
-  const logo = DEFAULT_CONFIG.LOGO_URL;
-  ["login-logo","logo-side","report-logo"].forEach(function(id){
-    const img = $(id);
-    if(img){
-      img.src = logo;
-      img.onerror = function(){ console.warn("Logo gagal dimuat:", logo); };
-    }
-  });
-}
+
+
+// ======================================================
+// STARTUP LOGIN FINAL
+// ======================================================
 window.addEventListener("load", function(){
   setTimeout(function(){
-    pasangLogoAplikasi();
+    applyBranding();
     kosongkanFormLogin();
   }, 300);
   setTimeout(kosongkanFormLogin, 900);
+});
+
+
+// ======================================================
+// STARTUP LOGIN FIX LOGO
+// ======================================================
+window.addEventListener("load", function(){
+  setTimeout(function(){
+    applyBranding();
+    var u = $("login-user");
+    var p = $("login-pass");
+    if(u) u.value = "";
+    if(p) p.value = "";
+  }, 300);
 });
 
 </script>
