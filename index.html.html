@@ -1,0 +1,1538 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akuntansi BUMDesa Berkah Mandiri Tampingan</title>
+
+<!--
+=====================================================
+APLIKASI AKUNTANSI BUMDES SIMPLE PEMERINGKATAN
+Copyright © 2026 Dhian Widhi A
+Produk digital berlisensi.
+=====================================================
+-->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const DEFAULT_CONFIG = {
+  GAS_URL: "https://script.google.com/macros/s/AKfycbyugeLt5CvWvJzLS3vUCZ-RNwG17it7oyxQPxuGNQxIIXGTs9-w9356-f_lbBForHqc/exec",
+  LOGO_URL: "https://campurejosuksesmandiri-alt.github.io/akuntasibumdes/logo-bumdes.png",
+  COPYRIGHT: "© 2026 Dhian Widhi A"
+};
+</script>
+
+<style>
+:root{--primary:#0d9488;--success:#16a34a;--danger:#dc2626;--warning:#f59e0b;--bg:#f8fafc;--card:#fff;--text:#0f172a;--muted:#64748b;--border:#e2e8f0}
+[data-theme="dark"]{--bg:#0f172a;--card:#1e293b;--text:#f8fafc;--muted:#94a3b8;--border:#334155}
+*{box-sizing:border-box;margin:0;padding:0;font-family:Segoe UI,Tahoma,Arial,sans-serif}
+body{background:var(--bg);color:var(--text)}
+#login-screen{position:fixed;inset:0;background:linear-gradient(135deg,#e0f2fe,#ccfbf1);display:flex;align-items:center;justify-content:center;z-index:99;padding:20px}
+.login-card{background:white;border-radius:18px;box-shadow:0 16px 45px rgba(15,23,42,.18);max-width:420px;width:100%;padding:30px;text-align:center;color:#0f172a}
+.login-logo{width:90px;height:90px;object-fit:contain;margin-bottom:10px}
+input,select,textarea{width:100%;padding:11px;border:1px solid var(--border);border-radius:10px;background:var(--bg);color:var(--text);font-size:1rem}
+textarea{min-height:76px}
+label{font-size:.88rem;font-weight:700;color:var(--muted)}
+button,.btn{border:0;border-radius:10px;padding:11px 15px;cursor:pointer;font-weight:800;display:inline-flex;gap:7px;align-items:center;justify-content:center}
+.btn-primary{background:var(--primary);color:white}.btn-danger{background:var(--danger);color:white}.btn-warning{background:var(--warning);color:white}.btn-light{background:var(--border);color:var(--text)}
+#app{display:none;min-height:100vh;grid-template-columns:250px 1fr}
+.sidebar{background:var(--card);border-right:1px solid var(--border);padding:18px;display:flex;flex-direction:column;gap:14px}
+.brand{text-align:center;border-bottom:1px solid var(--border);padding-bottom:14px}.brand img{width:78px;height:78px;object-fit:contain;background:white;border-radius:12px;padding:5px}.brand h3{font-size:1rem;color:var(--primary);margin-top:8px}
+.menu{list-style:none;display:flex;flex-direction:column;gap:8px}.menu li{padding:12px 14px;border-radius:12px;cursor:pointer;font-weight:800;color:var(--muted)}.menu li:hover,.menu li.active{background:var(--primary);color:white}
+.copyright-app{margin-top:auto;text-align:center;font-size:11px;line-height:1.45;color:var(--muted);border-top:1px solid var(--border);padding-top:12px}
+.main{display:flex;flex-direction:column;min-width:0}.topbar{background:var(--card);border-bottom:1px solid var(--border);padding:15px 22px;display:flex;align-items:center;justify-content:space-between;gap:10px}.content{padding:22px;overflow:auto}
+.section{display:none}.section.active{display:block}.card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:18px;box-shadow:0 1px 5px rgba(0,0,0,.04)}
+.card-title{font-size:1.15rem;font-weight:900;color:var(--primary);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between;gap:10px}
+.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px}.grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px}
+.form-group{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.metric{border-radius:16px;color:white;padding:18px}.metric small{opacity:.9;font-weight:700}.metric div{font-size:1.45rem;font-weight:900;margin-top:6px}
+.table-wrap{overflow:auto;margin-top:10px}table{width:100%;border-collapse:collapse;font-size:.94rem}th,td{padding:10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}th{background:var(--bg);color:var(--muted);font-weight:900}
+.text-right{text-align:right}.text-center{text-align:center}.text-success{color:var(--success)}.text-danger{color:var(--danger)}.font-bold{font-weight:900}
+.badge{padding:4px 8px;border-radius:999px;font-size:.78rem;font-weight:900}.badge-masuk{background:#dcfce7;color:#166534}.badge-keluar{background:#fee2e2;color:#991b1b}
+.report{background:white;color:#111827;border:1px solid #cbd5e1;border-radius:14px;padding:32px;margin-top:14px}.report-header{display:flex;align-items:center;justify-content:center;gap:18px;border-bottom:3px double #111827;padding-bottom:14px;margin-bottom:18px;text-align:center}.report-header img{width:82px;height:82px;object-fit:contain}.report-header h2{font-size:1.35rem;margin-bottom:4px;text-transform:uppercase}.report-header .sub{font-size:.9rem;color:#475569}.report h3{text-align:center;color:#0d9488;margin:10px 0 16px}
+.report-table th{background:#f1f5f9;color:#111827;border-bottom:2px solid #111827}.row-cat{background:#f8fafc;font-weight:900}.row-total{background:#e2e8f0;font-weight:900}
+.ttd{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;text-align:center;margin-top:45px}.ttd div{height:115px;display:flex;flex-direction:column;justify-content:space-between;font-size:.9rem}
+.help{color:var(--muted);font-size:.92rem;line-height:1.5}#loading{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;color:white;font-weight:900;align-items:center;justify-content:center}
+
+.btn-small{padding:6px 9px;font-size:.78rem;border-radius:8px}.aksi-wrap{display:flex;gap:6px;flex-wrap:wrap}.riwayat-info{font-size:.86rem;color:var(--muted);font-weight:700}
+
+.periode-card{border-left:6px solid var(--primary);background:linear-gradient(135deg,var(--card),var(--bg))}
+.periode-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#ccfbf1;color:#0f766e;font-weight:900;font-size:.82rem}
+[data-theme="dark"] .periode-pill{background:#134e4a;color:#99f6e4}
+.warn-box{padding:10px 12px;border-radius:12px;background:#fffbeb;color:#92400e;border:1px solid #fde68a;font-size:.9rem;font-weight:700}
+
+
+@media(max-width:800px){#app{grid-template-columns:1fr}.menu{display:grid;grid-template-columns:repeat(2,1fr)}.topbar{flex-direction:column;align-items:flex-start}.ttd{grid-template-columns:repeat(2,1fr)}}
+@media print{body *{visibility:hidden!important}.section.active .report,.section.active .report *{visibility:visible!important}.section.active .report{position:absolute!important;left:0!important;top:0!important;width:100%!important;margin:0!important;padding:0!important;border:none!important;box-shadow:none!important}.no-print,.sidebar,.topbar,.card.no-print,.copyright-app,button,input,select,textarea{display:none!important}}
+</style>
+</head>
+<body>
+<div id="loading">⏳ Sinkronisasi data...</div>
+
+<div id="login-screen">
+  <div class="login-card">
+    <img id="login-logo" class="login-logo" src="">
+    <h2 style="color:#0d9488;margin-bottom:4px">Akuntansi BUMDesa Berkah Mandiri Tampingan</h2>
+    <p style="color:#64748b;margin-bottom:18px">Simple, rapi, Akurat</p>
+    <div class="form-group"><label>Username</label><input id="login-user" value="admin"></div>
+    <div class="form-group"><label>Password</label><input id="login-pass" type="password" value="admin123"></div>
+    <button class="btn-primary" style="width:100%" onclick="login()">Masuk</button>
+    <p style="font-size:11px;color:#64748b;margin-top:14px">© 2026 Dhian Widhi A</p>
+  </div>
+</div>
+
+<div id="app">
+  <aside class="sidebar no-print">
+    <div class="brand"><img id="logo-side" src=""><h3 id="brand-name">BUMDes</h3></div>
+    <ul class="menu">
+      <li class="active" onclick="showSec('dashboard',this)">📊 Dashboard</li>
+      <li onclick="showSec('transaksi',this)">🧾 Transaksi</li>
+      <li onclick="showSec('bank',this)">🏦 Data Bank</li>
+      <li onclick="showSec('aset',this)">📦 Inventaris</li>
+      <li onclick="showSec('data',this)">📚 Data</li>
+      <li onclick="showSec('tutup',this)">🔒 Tutup Buku</li>
+      <li onclick="showSec('laporan',this)">📋 Laporan</li>
+      <li onclick="showSec('pengaturan',this)">⚙️ Profil</li>
+    </ul>
+    <button class="btn-danger" onclick="logout()">Keluar</button>
+    <div class="copyright-app">© 2026 Dhian Widhi A<br>Akuntansi BUMDes Simple<br>Produk Digital Berlisensi</div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar no-print">
+      <div><h2 id="page-title" style="color:var(--primary)">Dashboard</h2><small id="today" style="color:var(--muted)"></small></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn-light" onclick="toggleTheme()">🌓 Tema</button><button class="btn-primary" onclick="tarikDataDariSheets(true)">🔄 Tarik Sheets</button><button class="btn-warning" onclick="backupJSON()">💾 Backup</button></div>
+    </div>
+
+    <div class="content">
+      <section id="sec-dashboard" class="section active">
+        <div class="card no-print periode-card">
+          <div class="card-title">
+            <span>📅 Periode Aktif Laporan</span>
+            <span id="periode-status-dashboard" class="periode-pill">Periode aktif</span>
+          </div>
+          <div class="grid-3">
+            <div class="form-group">
+              <label>Pilih Periode Aktif</label>
+              <select id="periode-aktif-dashboard" onchange="setPeriodeAktif(this.value)"></select>
+            </div>
+            <div class="form-group">
+              <label>Kunci Input ke Periode Ini</label>
+              <select id="kunci-periode-dashboard" onchange="setKunciPeriodeAktif(this.value)">
+                <option value="YA">Ya, wajib sama periode</option>
+                <option value="TIDAK">Tidak, izinkan beda bulan</option>
+              </select>
+            </div>
+            <div class="form-group" style="justify-content:flex-end">
+              <div class="warn-box">Dashboard, laporan, dan input utama mengikuti periode aktif ini.</div>
+            </div>
+          </div>
+        </div>
+        <div class="grid-4">
+          <div class="metric" style="background:#16a34a"><small>Pemasukan Periode Aktif</small><div id="m-in">Rp 0</div></div>
+          <div class="metric" style="background:#dc2626"><small>Pengeluaran Periode Aktif</small><div id="m-out">Rp 0</div></div>
+          <div class="metric" style="background:#0d9488"><small>Saldo Akhir Berjalan</small><div id="m-kas">Rp 0</div></div>
+          <div class="metric" style="background:#f59e0b"><small>Nilai Buku Aset</small><div id="m-aset">Rp 0</div></div>
+        </div>
+        <div class="grid-2" style="margin-top:18px">
+          <div class="card">
+            <div class="card-title">📊 Grafik Kas Bulanan</div>
+            <canvas id="chartKas" height="130"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-title">🏆 Pendapatan Unit Usaha</div>
+            <canvas id="chartUnitUsaha" height="130"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-title">🥧 Kontribusi Unit Usaha</div>
+            <canvas id="chartKontribusiUnit" height="130"></canvas>
+          </div>
+          <div class="card">
+            <div class="card-title">🎯 Ringkasan Kinerja</div>
+            <div id="ringkasan-kinerja" class="help"></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sec-transaksi" class="section">
+        <div class="card no-print periode-card">
+          <div class="card-title">
+            <span>📅 Periode Aktif Transaksi</span>
+            <span id="periode-status-transaksi" class="periode-pill">Periode aktif</span>
+          </div>
+          <div class="grid-3">
+            <div class="form-group">
+              <label>Pilih Periode Aktif</label>
+              <select id="periode-aktif-transaksi" onchange="setPeriodeAktif(this.value)"></select>
+            </div>
+            <div class="form-group">
+              <label>Aturan Input Tanggal</label>
+              <select id="kunci-periode-transaksi" onchange="setKunciPeriodeAktif(this.value)">
+                <option value="YA">Tanggal wajib sesuai periode</option>
+                <option value="TIDAK">Izinkan beda bulan</option>
+              </select>
+            </div>
+            <div class="form-group" style="justify-content:flex-end">
+              <div id="periode-info-transaksi" class="warn-box">Transaksi akan dicek agar sesuai periode aktif.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span id="judul-form-transaksi">Input Transaksi Harian</span>
+            <span id="mode-edit-transaksi" class="riwayat-info"></span>
+          </div>
+          <div class="grid-3">
+            <div class="form-group"><label>Tanggal</label><input type="date" id="trx-tanggal" onchange="cekTanggalTransaksiPeriode(true)"></div>
+            <div class="form-group"><label>Jenis</label><select id="trx-jenis" onchange="aturKategori()"><option value="MASUK">Pemasukan</option><option value="KELUAR">Pengeluaran</option></select></div>
+            <div class="form-group"><label>Unit/Kategori</label><select id="trx-kategori"></select></div>
+            <div class="form-group"><label>Nominal</label><input type="number" id="trx-nominal"></div>
+            <div class="form-group"><label>Petugas Login</label><input id="trx-petugas" readonly placeholder="Otomatis sesuai login"></div>
+          </div>
+          <div class="form-group"><label>Keterangan</label><input id="trx-keterangan"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <button id="btn-simpan-transaksi" class="btn-primary" onclick="simpanTransaksi()">💾 Simpan Transaksi</button>
+            <button id="btn-batal-edit-transaksi" class="btn-light" style="display:none" onclick="batalEditTransaksi()">Batal Edit</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">
+            <span>📋 Riwayat Transaksi Periode Aktif</span>
+            <span id="info-riwayat-transaksi" class="riwayat-info">Tampil 20 data</span>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Tanggal</th>
+                  <th>Jenis</th>
+                  <th>Unit/Kategori</th>
+                  <th>Keterangan</th>
+                  <th>Petugas</th>
+                  <th class="text-right">Nominal</th>
+                  <th>Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-transaksi-input"></tbody>
+            </table>
+          </div>
+          <div style="display:flex;justify-content:center;margin-top:12px">
+            <button id="btn-load-more-transaksi" class="btn-light" onclick="loadMoreTransaksi()">Tampilkan 20 Lagi</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="sec-bank" class="section">
+        <div class="card"><div class="card-title">Data Bank / Mutasi Rekening</div>
+          <div class="grid-3">
+            <div class="form-group"><label>Tanggal</label><input type="date" id="bank-tanggal"></div>
+            <div class="form-group"><label>Jenis Mutasi</label><select id="bank-jenis"><option value="SETOR">Setor ke Bank</option><option value="TARIK">Tarik dari Bank</option><option value="BUNGA">Bunga Bank</option><option value="ADMIN">Biaya Admin</option></select></div>
+            <div class="form-group"><label>Nominal</label><input type="number" id="bank-nominal"></div>
+          </div>
+          <div class="form-group"><label>Keterangan</label><input id="bank-keterangan"></div>
+          <button class="btn-primary" onclick="simpanBank()">💾 Simpan Mutasi Bank</button>
+        </div>
+        <div class="card"><div class="card-title">Riwayat Bank</div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th class="text-right">Nominal</th><th>Aksi</th></tr></thead><tbody id="tbl-bank"></tbody></table></div></div>
+      </section>
+
+      <section id="sec-aset" class="section">
+        <div class="card"><div class="card-title">Inventaris Aset & Penyusutan</div>
+          <div class="grid-3">
+            <div class="form-group"><label>Nama Aset</label><input id="aset-nama"></div>
+            <div class="form-group"><label>Tanggal Beli</label><input type="date" id="aset-tanggal"></div>
+            <div class="form-group"><label>Harga Perolehan</label><input type="number" id="aset-harga"></div>
+            <div class="form-group"><label>Umur Ekonomis (Bulan)</label><input type="number" id="aset-umur" value="48"></div>
+            <div class="form-group"><label>Nilai Sisa</label><input type="number" id="aset-sisa" value="0"></div>
+          </div>
+          <button class="btn-primary" onclick="simpanAset()">📦 Simpan Aset</button>
+        </div>
+        <div class="card"><div class="card-title">Daftar Inventaris</div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Nama</th><th>Tgl Beli</th><th class="text-right">Harga</th><th class="text-right">Susut/Bln</th><th class="text-right">Akum. Susut</th><th class="text-right">Nilai Buku</th><th>Aksi</th></tr></thead><tbody id="tbl-aset"></tbody></table></div></div>
+      </section>
+
+      <section id="sec-data" class="section">
+        <div class="card"><div class="card-title"><span>Data Transaksi</span></div>
+          <div class="grid-4 no-print">
+            <div class="form-group"><label>Periode</label><select id="filter-bulan" onchange="renderAll()"></select></div>
+            <div class="form-group"><label>Jenis</label><select id="filter-jenis" onchange="renderAll()"><option value="SEMUA">Semua</option><option value="MASUK">Pemasukan</option><option value="KELUAR">Pengeluaran</option></select></div>
+            <div class="form-group"><label>Unit/Kategori</label><select id="filter-kategori" onchange="renderAll()"><option value="SEMUA">Semua</option></select></div>
+            <div class="form-group" style="justify-content:flex-end"><button class="btn-light" onclick="resetFilter()">Reset Filter</button></div>
+          </div><div class="table-wrap"><table><thead><tr><th>ID</th><th>Tanggal</th><th>Jenis</th><th>Unit/Kategori</th><th>Keterangan</th><th>Petugas</th><th class="text-right">Nominal</th><th>Aksi</th></tr></thead><tbody id="tbl-transaksi"></tbody></table></div></div>
+      </section>
+
+
+      <section id="sec-tutup" class="section">
+        <div class="card no-print">
+          <div class="card-title">Tutup Buku Bulanan</div>
+          <p class="help" style="margin-bottom:12px">
+            Setelah tutup buku, transaksi bulan tersebut dikunci. Saldo akhir bulan otomatis menjadi saldo awal bulan berikutnya.
+          </p>
+          <div class="grid-3">
+            <div class="form-group">
+              <label>Periode Tutup Buku</label>
+              <select id="tutup-bulan" onchange="renderTutupBuku()"></select>
+            </div>
+            <div class="form-group">
+              <label>Status Periode</label>
+              <input id="tutup-status" readonly>
+            </div>
+            <div class="form-group" style="justify-content:flex-end">
+              <button class="btn-warning" onclick="prosesTutupBuku()">🔒 Tutup Buku</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Ringkasan Tutup Buku</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Uraian</th>
+                  <th class="text-right">Nominal</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-ringkas-tutup"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Riwayat Tutup Buku</div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Periode</th>
+                  <th>Tanggal Tutup</th>
+                  <th class="text-right">Saldo Awal</th>
+                  <th class="text-right">Pemasukan</th>
+                  <th class="text-right">Pengeluaran</th>
+                  <th class="text-right">Saldo Akhir</th>
+                  <th>Status</th>
+                  <th class="no-print">Aksi</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-tutup-buku"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section id="sec-laporan" class="section">
+        <div class="card no-print"><div class="card-title">Cetak Laporan Pemeringkatan</div>
+          <div class="grid-3">
+            <div class="form-group"><label>Jenis Laporan</label><select id="lap-jenis" onchange="generateLaporan()"><option value="labarugi">Laba Rugi</option><option value="neraca">Neraca</option><option value="aruskas">Arus Kas</option><option value="aset">Daftar Inventaris</option><option value="bank">Rekap Bank</option></select></div>
+            <div class="form-group"><label>Periode Bulan</label><select id="lap-bulan" onchange="generateLaporan();renderAset()"></select></div>
+            <div class="form-group" style="justify-content:flex-end"><button class="btn-primary" onclick="window.print()">🖨️ Print Dokumen</button></div>
+          </div>
+        </div>
+        <div class="report" id="report-box">
+          <div class="report-header"><img id="report-logo" src=""><div><h2 id="rep-nama">BUMDes</h2><div class="sub" id="rep-alamat"></div><h3 id="rep-title">LAPORAN</h3><div class="sub" id="rep-periode"></div></div></div>
+          <div id="rep-content"></div>
+          <div class="ttd">
+            <div><span id="role1">Direktur</span><b id="nama1">........................</b></div>
+            <div><span id="role2">Bendahara</span><b id="nama2">........................</b></div>
+            <div><span id="role3">Pengawas</span><b id="nama3">........................</b></div>
+            <div><span id="role4">Penasehat</span><b id="nama4">........................</b></div>
+          </div>
+        </div>
+      </section>
+
+      <section id="sec-pengaturan" class="section">
+        <div class="card"><div class="card-title">Profil BUMDes</div>
+          <div class="grid-2">
+            <div class="form-group"><label>Nama BUMDes</label><input id="cfg-nama"></div>
+            <div class="form-group"><label>Alamat</label><input id="cfg-alamat"></div>
+            <div class="form-group"><label>Telepon</label><input id="cfg-telp"></div>
+            <div class="form-group"><label>Email</label><input id="cfg-email"></div>
+            <div class="form-group"><label>Saldo Awal Kas</label><input type="number" id="cfg-saldo-awal"></div>
+            <div class="form-group"><label>Utang</label><input type="number" id="cfg-utang"></div>
+            <div class="form-group"><label>Modal Awal / Penyertaan Modal</label><input type="number" id="cfg-modal"></div>
+          </div>
+          <div class="grid-4">
+            <div class="form-group"><label>Jabatan 1</label><input id="cfg-role1"></div><div class="form-group"><label>Nama 1</label><input id="cfg-nama1"></div>
+            <div class="form-group"><label>Jabatan 2</label><input id="cfg-role2"></div><div class="form-group"><label>Nama 2</label><input id="cfg-nama2"></div>
+            <div class="form-group"><label>Jabatan 3</label><input id="cfg-role3"></div><div class="form-group"><label>Nama 3</label><input id="cfg-nama3"></div>
+            <div class="form-group"><label>Jabatan 4</label><input id="cfg-role4"></div><div class="form-group"><label>Nama 4</label><input id="cfg-nama4"></div>
+          </div>
+          <button class="btn-primary" onclick="simpanProfil()">💾 Simpan Profil</button>
+        </div>
+        <div class="card"><div class="card-title">Master Sederhana</div><div class="grid-2"><div><div class="form-group"><label>Tambah Unit Usaha</label><input id="new-unit"><button class="btn-primary" onclick="tambahUnit()">Tambah Unit</button></div><ul id="list-unit" class="help"></ul></div><div><div class="form-group"><label>Tambah Kategori Pengeluaran</label><input id="new-kategori"><button class="btn-primary" onclick="tambahKategori()">Tambah Kategori</button></div><ul id="list-kategori" class="help"></ul></div></div></div>
+      </section>
+    </div>
+  </main>
+</div>
+
+<script>
+function $(id){return document.getElementById(id)}
+function formatRupiah(n){return new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(Number(n||0))}
+function todayStr(){return new Date().toISOString().slice(0,10)}
+function monthStr(){return new Date().toISOString().slice(0,7)}
+function prevMonth(bulan){const p=bulan.split("-").map(Number);let y=p[0],m=p[1]-1;if(m===0){m=12;y--}return y+"-"+String(m).padStart(2,"0")}
+function showLoading(){$("loading").style.display="flex"} function hideLoading(){$("loading").style.display="none"}
+let state={gasUrl:DEFAULT_CONFIG.GAS_URL,transaksi:JSON.parse(localStorage.getItem("simp_trx"))||[],bank:JSON.parse(localStorage.getItem("simp_bank"))||[],aset:JSON.parse(localStorage.getItem("simp_aset"))||[],unitUsaha:JSON.parse(localStorage.getItem("simp_unit"))||["Unit Toko","Unit Jasa","Unit Wisata","Unit Simpan Pinjam"],kategoriKeluar:JSON.parse(localStorage.getItem("simp_kat"))||["Gaji","Administrasi","Transport","Listrik/Air","Operasional","Perawatan","Pembelian Aset"],profil:JSON.parse(localStorage.getItem("simp_profil"))||{nama:"BUMDes",alamat:"Alamat BUMDes",telp:"",email:"",logo:DEFAULT_CONFIG.LOGO_URL,saldoAwal:0,utang:0,modal:0,role1:"Direktur",nama1:"........................",role2:"Bendahara",nama2:"........................",role3:"Pengawas",nama3:"........................",role4:"Penasehat",nama4:"........................"}}
+let chartKas=null;
+let currentUserLogin = JSON.parse(localStorage.getItem("simp_current_user") || "null");
+function saveLocal(){localStorage.setItem("simp_trx",JSON.stringify(state.transaksi));localStorage.setItem("simp_bank",JSON.stringify(state.bank));localStorage.setItem("simp_aset",JSON.stringify(state.aset));localStorage.setItem("simp_unit",JSON.stringify(state.unitUsaha));localStorage.setItem("simp_kat",JSON.stringify(state.kategoriKeluar));localStorage.setItem("simp_profil",JSON.stringify(state.profil))}
+window.onload=function(){$("today").innerText=new Date().toLocaleDateString("id-ID",{weekday:"long",day:"numeric",month:"long",year:"numeric"});["trx-tanggal","bank-tanggal","aset-tanggal"].forEach(id=>$(id).value=todayStr());applyBranding(); isiDropdownPeriode(); if(typeof updatePetugasLogin==="function") updatePetugasLogin();loadProfilForm();aturKategori();renderAll();setTimeout(renderDashboardAnalitik,100);if(state.gasUrl&&state.gasUrl!=="PASTE_URL_GAS_DISINI")tarikDataDariSheets(false)}
+function applyBranding(){const logo=state.profil.logo||DEFAULT_CONFIG.LOGO_URL||"";["login-logo","logo-side","report-logo"].forEach(id=>{if($(id))$(id).src=logo});$("brand-name").innerText=state.profil.nama||"BUMDes"}
+function login(){
+  const u=$("login-user").value.trim();
+  const p=$("login-pass").value.trim();
+
+  const daftarUser = {
+    admin: {password:"admin123", nama:"Administrator", role:"Admin"},
+    operator: {password:"op123", nama:"Petugas Operator", role:"Operator"},
+    viewer: {password:"view123", nama:"Viewer / Pemeriksa", role:"Viewer"}
+  };
+
+  if(daftarUser[u] && daftarUser[u].password === p){
+    currentUserLogin = {
+      username: u,
+      nama: daftarUser[u].nama,
+      role: daftarUser[u].role
+    };
+  } else if(u && p) {
+    currentUserLogin = {
+      username: u,
+      nama: u,
+      role: "User"
+    };
+  } else {
+    return alert("Login salah. Default admin/admin123 atau operator/op123");
+  }
+
+  localStorage.setItem("simp_current_user", JSON.stringify(currentUserLogin));
+  $("login-screen").style.display="none";
+  $("app").style.display="grid";
+  updatePetugasLogin();
+  renderAll();
+}
+function logout(){localStorage.removeItem("simp_current_user");location.reload()} function toggleTheme(){document.documentElement.dataset.theme=document.documentElement.dataset.theme==="dark"?"light":"dark"}
+function showSec(sec,el){document.querySelectorAll(".section").forEach(s=>s.classList.remove("active"));$("sec-"+sec).classList.add("active");document.querySelectorAll(".menu li").forEach(li=>li.classList.remove("active"));if(el)el.classList.add("active");$("page-title").innerText=el?el.innerText.replace(/[^\w\s]/g,"").trim():"";if(sec==="laporan")generateLaporan();renderAll()}
+function aturKategori(){const list=$("trx-jenis").value==="MASUK"?state.unitUsaha:state.kategoriKeluar;$("trx-kategori").innerHTML=list.map(x=>`<option value="${x}">${x}</option>`).join("")}
+function simpanTransaksi(){const t={id:"TRX-"+Date.now().toString().slice(-8),tanggal:$("trx-tanggal").value,jenis:$("trx-jenis").value,kategori:$("trx-kategori").value,keterangan:$("trx-keterangan").value,nominal:Number($("trx-nominal").value||0),petugas:getNamaPetugasLogin()};if(!t.tanggal||!t.nominal)return alert("Lengkapi transaksi");state.transaksi.unshift(t);saveLocal();syncToGasBackend("add_transaksi",t);$("trx-nominal").value="";$("trx-keterangan").value="";renderAll();alert("Transaksi tersimpan")}
+function hapusTransaksi(id){if(!confirm("Hapus transaksi?"))return;state.transaksi=state.transaksi.filter(t=>t.id!==id);saveLocal();syncToGasBackend("delete_transaksi",{id});renderAll()}
+function simpanBank(){const b={id:"BNK-"+Date.now().toString().slice(-8),tanggal:$("bank-tanggal").value,jenis:$("bank-jenis").value,keterangan:$("bank-keterangan").value,nominal:Number($("bank-nominal").value||0)};if(!b.tanggal||!b.nominal)return alert("Lengkapi data bank");state.bank.unshift(b);saveLocal();syncToGasBackend("add_bank",b);$("bank-nominal").value="";$("bank-keterangan").value="";renderAll();alert("Data bank tersimpan")}
+function hapusBank(id){if(!confirm("Hapus data bank?"))return;state.bank=state.bank.filter(b=>b.id!==id);saveLocal();syncToGasBackend("delete_bank",{id});renderAll()}
+function simpanAset(){const a={id:"AST-"+Date.now().toString().slice(-8),nama:$("aset-nama").value,tanggal_beli:$("aset-tanggal").value,harga:Number($("aset-harga").value||0),umur:Number($("aset-umur").value||1),sisa:Number($("aset-sisa").value||0)};if(!a.nama||!a.tanggal_beli||!a.harga)return alert("Lengkapi aset");state.aset.unshift(a);saveLocal();syncToGasBackend("add_aset",a);["aset-nama","aset-harga"].forEach(id=>$(id).value="");renderAll();alert("Aset tersimpan")}
+function hapusAset(id){if(!confirm("Hapus aset?"))return;state.aset=state.aset.filter(a=>a.id!==id);saveLocal();syncToGasBackend("delete_aset",{id});renderAll()}
+function susutAset(a,bulan=monthStr()){const per=(Number(a.harga||0)-Number(a.sisa||0))/Number(a.umur||1);const b0=a.tanggal_beli.slice(0,7);let sel=(Number(bulan.slice(0,4))-Number(b0.slice(0,4)))*12+(Number(bulan.slice(5,7))-Number(b0.slice(5,7)))+1;if(sel<0)sel=0;if(sel>a.umur)sel=a.umur;const akum=per*sel;return{per,akum,nilai:Number(a.harga||0)-akum}}
+function nilaiBukuAset(bulan=monthStr()){return state.aset.reduce((s,a)=>s+susutAset(a,bulan).nilai,0)}
+function bebanSusutBulan(bulan){return state.aset.reduce((s,a)=>s+susutAset(a,bulan).per,0)}
+function totalMasuk(bulan=null){return state.transaksi.filter(t=>t.jenis==="MASUK"&&(!bulan||t.tanggal.slice(0,7)===bulan)).reduce((s,t)=>s+Number(t.nominal||0),0)}
+function totalKeluar(bulan=null){return state.transaksi.filter(t=>t.jenis==="KELUAR"&&(!bulan||t.tanggal.slice(0,7)===bulan)).reduce((s,t)=>s+Number(t.nominal||0),0)}
+function saldoKasSampai(bulan=null){return Number(state.profil.saldoAwal||0)+state.transaksi.filter(t=>(!bulan||t.tanggal.slice(0,7)<=bulan)&&t.jenis==="MASUK").reduce((s,t)=>s+Number(t.nominal||0),0)-state.transaksi.filter(t=>(!bulan||t.tanggal.slice(0,7)<=bulan)&&t.jenis==="KELUAR").reduce((s,t)=>s+Number(t.nominal||0),0)}
+function renderAll(){renderTable();renderBank();renderAset();updateDashboard();renderChart();renderMasterList();generateLaporan()}
+function renderTable(){const bulan=$("filter-bulan").value;const rows=state.transaksi.filter(t=>t.tanggal.slice(0,7)===bulan);$("tbl-transaksi").innerHTML=rows.map(t=>`<tr><td>${t.id}</td><td>${t.tanggal}</td><td><span class="badge ${t.jenis==="MASUK"?"badge-masuk":"badge-keluar"}">${t.jenis==="MASUK"?"Pemasukan":"Pengeluaran"}</span></td><td>${t.kategori}</td><td>${t.keterangan||""}</td><td>${t.petugas||""}</td><td class="text-right">${formatRupiah(t.nominal)}</td><td><button class="btn-danger" onclick="hapusTransaksi('${t.id}')">Hapus</button></td></tr>`).join("")}
+function renderBank(){$("tbl-bank").innerHTML=state.bank.map(b=>`<tr><td>${b.id}</td><td>${b.tanggal}</td><td>${b.jenis}</td><td>${b.keterangan||""}</td><td class="text-right">${formatRupiah(b.nominal)}</td><td><button class="btn-danger" onclick="hapusBank('${b.id}')">Hapus</button></td></tr>`).join("")}
+function renderAset(){const bulan=$("lap-bulan")?.value||monthStr();$("tbl-aset").innerHTML=state.aset.map(a=>{const s=susutAset(a,bulan);return`<tr><td>${a.id}</td><td>${a.nama}</td><td>${a.tanggal_beli}</td><td class="text-right">${formatRupiah(a.harga)}</td><td class="text-right">${formatRupiah(s.per)}</td><td class="text-right">${formatRupiah(s.akum)}</td><td class="text-right">${formatRupiah(s.nilai)}</td><td><button class="btn-danger" onclick="hapusAset('${a.id}')">Hapus</button></td></tr>`}).join("")}
+function updateDashboard(){const b=$("filter-bulan").value;const masuk=totalMasuk(b),keluar=totalKeluar(b);$("m-in").innerText=formatRupiah(masuk);$("m-out").innerText=formatRupiah(keluar);$("m-kas").innerText=formatRupiah(saldoKasSampai(b));$("m-aset").innerText=formatRupiah(nilaiBukuAset(b))}
+function renderChart(){const ctx=$("chartKas");if(!ctx)return;const labels=["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];let masuk=Array(12).fill(0),keluar=Array(12).fill(0);state.transaksi.forEach(t=>{const m=new Date(t.tanggal).getMonth();if(!isNaN(m)){if(t.jenis==="MASUK")masuk[m]+=Number(t.nominal||0);else keluar[m]+=Number(t.nominal||0)}});if(chartKas)chartKas.destroy();chartKas=new Chart(ctx,{type:"bar",data:{labels,datasets:[{label:"Pemasukan",data:masuk},{label:"Pengeluaran",data:keluar}]},options:{responsive:true}})}
+function setReportHeader(title,bulan){applyBranding();$("rep-nama").innerText=state.profil.nama||"BUMDes";$("rep-alamat").innerText=`${state.profil.alamat||""} | Telp: ${state.profil.telp||""} | Email: ${state.profil.email||""}`;$("rep-title").innerText=title;const d=new Date(bulan+"-02");$("rep-periode").innerText="Periode: "+d.toLocaleDateString("id-ID",{month:"long",year:"numeric"});for(let i=1;i<=4;i++){$("role"+i).innerText=state.profil["role"+i]||"";$("nama"+i).innerText=state.profil["nama"+i]||"........................"}}
+function generateLaporan(){if(!$("rep-content"))return;const j=$("lap-jenis").value,b=$("lap-bulan").value||monthStr();if(j==="labarugi")lapLabaRugi(b);if(j==="neraca")lapNeraca(b);if(j==="aruskas")lapArusKas(b);if(j==="aset")lapAset(b);if(j==="bank")lapBank(b)}
+function lapLabaRugi(b){setReportHeader("LAPORAN LABA RUGI",b);let masuk={},keluar={};state.transaksi.filter(t=>t.tanggal.slice(0,7)===b).forEach(t=>{if(t.jenis==="MASUK")masuk[t.kategori]=(masuk[t.kategori]||0)+Number(t.nominal);else keluar[t.kategori]=(keluar[t.kategori]||0)+Number(t.nominal)});const tin=Object.values(masuk).reduce((a,b)=>a+b,0),tout=Object.values(keluar).reduce((a,b)=>a+b,0),sus=bebanSusutBulan(b);let h=`<table class="report-table"><thead><tr><th>Uraian</th><th class="text-right">Nominal</th></tr></thead><tbody><tr class="row-cat"><td colspan="2">PENDAPATAN</td></tr>`;Object.keys(masuk).forEach(k=>h+=`<tr><td style="padding-left:2rem">${k}</td><td class="text-right">${formatRupiah(masuk[k])}</td></tr>`);h+=`<tr class="row-total"><td>Total Pendapatan</td><td class="text-right">${formatRupiah(tin)}</td></tr><tr class="row-cat"><td colspan="2">BEBAN</td></tr>`;Object.keys(keluar).forEach(k=>h+=`<tr><td style="padding-left:2rem">${k}</td><td class="text-right">${formatRupiah(keluar[k])}</td></tr>`);h+=`<tr><td style="padding-left:2rem">Beban Penyusutan</td><td class="text-right">${formatRupiah(sus)}</td></tr><tr class="row-total"><td>Total Beban</td><td class="text-right">${formatRupiah(tout+sus)}</td></tr><tr class="row-total"><td>LABA/RUGI BERSIH</td><td class="text-right">${formatRupiah(tin-tout-sus)}</td></tr></tbody></table>`;$("rep-content").innerHTML=h}
+function lapNeraca(b){setReportHeader("LAPORAN NERACA",b);const kas=saldoKasSampai(b),aset=nilaiBukuAset(b),utang=Number(state.profil.utang||0),modal=Number(state.profil.modal||0),laba=totalMasuk(b)-totalKeluar(b)-bebanSusutBulan(b),akt=kas+aset,pas=utang+modal+laba,sel=akt-pas,ok=Math.abs(sel)<1;$("rep-content").innerHTML=`<table class="report-table"><thead><tr><th>AKTIVA</th><th class="text-right">Nominal</th></tr></thead><tbody><tr><td>Kas dan Setara Kas</td><td class="text-right">${formatRupiah(kas)}</td></tr><tr><td>Inventaris / Aset Tetap Bersih</td><td class="text-right">${formatRupiah(aset)}</td></tr><tr class="row-total"><td>TOTAL AKTIVA</td><td class="text-right">${formatRupiah(akt)}</td></tr></tbody></table><br><table class="report-table"><thead><tr><th>PASIVA</th><th class="text-right">Nominal</th></tr></thead><tbody><tr><td>Utang</td><td class="text-right">${formatRupiah(utang)}</td></tr><tr><td>Modal Awal / Penyertaan Modal</td><td class="text-right">${formatRupiah(modal)}</td></tr><tr><td>Laba/Rugi Periode Berjalan</td><td class="text-right">${formatRupiah(laba)}</td></tr><tr class="row-total"><td>TOTAL PASIVA</td><td class="text-right">${formatRupiah(pas)}</td></tr><tr><td>Selisih</td><td class="text-right ${ok?'text-success':'text-danger'}">${formatRupiah(sel)}</td></tr><tr class="row-total"><td>Status</td><td class="text-right ${ok?'text-success':'text-danger'}">${ok?'BALANCE':'PERLU CEK MODAL/UTANG'}</td></tr></tbody></table>`}
+function lapArusKas(b){setReportHeader("LAPORAN ARUS KAS",b);const masuk=totalMasuk(b),keluar=totalKeluar(b),awal=saldoKasSampai(prevMonth(b)),akhir=saldoKasSampai(b);$("rep-content").innerHTML=`<table class="report-table"><thead><tr><th>Uraian</th><th class="text-right">Nominal</th></tr></thead><tbody><tr><td>Saldo Kas Awal</td><td class="text-right">${formatRupiah(awal)}</td></tr><tr><td>Total Penerimaan Kas</td><td class="text-right">${formatRupiah(masuk)}</td></tr><tr><td>Total Pengeluaran Kas</td><td class="text-right">${formatRupiah(keluar)}</td></tr><tr class="row-total"><td>Kenaikan/Penurunan Kas</td><td class="text-right">${formatRupiah(masuk-keluar)}</td></tr><tr class="row-total"><td>Saldo Kas Akhir</td><td class="text-right">${formatRupiah(akhir)}</td></tr></tbody></table>`}
+function lapAset(b){setReportHeader("DAFTAR INVENTARIS DAN PENYUSUTAN",b);$("rep-content").innerHTML=`<table class="report-table"><thead><tr><th>Nama Aset</th><th>Tgl Beli</th><th class="text-right">Harga</th><th class="text-right">Akum. Susut</th><th class="text-right">Nilai Buku</th></tr></thead><tbody>${state.aset.map(a=>{const s=susutAset(a,b);return`<tr><td>${a.nama}</td><td>${a.tanggal_beli}</td><td class="text-right">${formatRupiah(a.harga)}</td><td class="text-right">${formatRupiah(s.akum)}</td><td class="text-right">${formatRupiah(s.nilai)}</td></tr>`}).join("")}</tbody></table>`}
+function lapBank(b){setReportHeader("REKAP DATA BANK",b);const rows=state.bank.filter(x=>x.tanggal.slice(0,7)===b);$("rep-content").innerHTML=`<table class="report-table"><thead><tr><th>Tanggal</th><th>Jenis</th><th>Keterangan</th><th class="text-right">Nominal</th></tr></thead><tbody>${rows.map(x=>`<tr><td>${x.tanggal}</td><td>${x.jenis}</td><td>${x.keterangan||""}</td><td class="text-right">${formatRupiah(x.nominal)}</td></tr>`).join("")}</tbody></table>`}
+function loadProfilForm(){["nama","alamat","telp","email"].forEach(k=>$("cfg-"+k).value=state.profil[k]||"");$("cfg-saldo-awal").value=state.profil.saldoAwal||0;$("cfg-utang").value=state.profil.utang||0;$("cfg-modal").value=state.profil.modal||0;for(let i=1;i<=4;i++){$("cfg-role"+i).value=state.profil["role"+i]||"";$("cfg-nama"+i).value=state.profil["nama"+i]||""}}
+function simpanProfil(){state.profil={...state.profil,nama:$("cfg-nama").value,alamat:$("cfg-alamat").value,telp:$("cfg-telp").value,email:$("cfg-email").value,logo:DEFAULT_CONFIG.LOGO_URL,saldoAwal:Number($("cfg-saldo-awal").value||0),utang:Number($("cfg-utang").value||0),modal:Number($("cfg-modal").value||0),role1:$("cfg-role1").value,nama1:$("cfg-nama1").value,role2:$("cfg-role2").value,nama2:$("cfg-nama2").value,role3:$("cfg-role3").value,nama3:$("cfg-nama3").value,role4:$("cfg-role4").value,nama4:$("cfg-nama4").value};saveLocal();syncToGasBackend("updateProfil",state.profil);applyBranding();renderAll();alert("Profil tersimpan")}
+function renderMasterList(){$("list-unit").innerHTML=state.unitUsaha.map(u=>`<li>${u} <button class="btn-danger" style="padding:2px 6px;font-size:11px" onclick="hapusUnit('${u}')">x</button></li>`).join("");$("list-kategori").innerHTML=state.kategoriKeluar.map(k=>`<li>${k} <button class="btn-danger" style="padding:2px 6px;font-size:11px" onclick="hapusKategori('${k}')">x</button></li>`).join("");aturKategori()}
+function tambahUnit(){const v=$("new-unit").value.trim();if(!v)return;state.unitUsaha.push(v);$("new-unit").value="";saveLocal();syncToGasBackend("updateMaster",{unitUsaha:state.unitUsaha,kategoriKeluar:state.kategoriKeluar});renderAll()}function tambahKategori(){const v=$("new-kategori").value.trim();if(!v)return;state.kategoriKeluar.push(v);$("new-kategori").value="";saveLocal();syncToGasBackend("updateMaster",{unitUsaha:state.unitUsaha,kategoriKeluar:state.kategoriKeluar});renderAll()}function hapusUnit(v){state.unitUsaha=state.unitUsaha.filter(x=>x!==v);saveLocal();renderAll()}function hapusKategori(v){state.kategoriKeluar=state.kategoriKeluar.filter(x=>x!==v);saveLocal();renderAll()}
+async function syncToGasBackend(action,data){if(!state.gasUrl||state.gasUrl==="PASTE_URL_GAS_DISINI")return;try{await fetch(state.gasUrl,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({action,data})})}catch(e){console.error(e)}}
+async function tarikDataDariSheets(showNotif=true){if(!state.gasUrl||state.gasUrl==="PASTE_URL_GAS_DISINI"){if(showNotif)alert("URL GAS belum diganti di DEFAULT_CONFIG.");return}try{showLoading();const r=await fetch(state.gasUrl+"?action=tarikData");const res=await r.json();if(res.transaksi)state.transaksi=res.transaksi;if(res.bank)state.bank=res.bank;if(res.aset)state.aset=res.aset.map(a=>({id:a.id,nama:a.nama,tanggal_beli:a.tanggal_beli,harga:Number(a.harga||0),umur:Number(a.umur||1),sisa:Number(a.sisa||0)}));if(res.profil_sistem){let p={};res.profil_sistem.forEach(row=>p[row.Parameter_Key]=row.Value_Data);state.profil={...state.profil,...p,logo:DEFAULT_CONFIG.LOGO_URL};["saldoAwal","utang","modal"].forEach(k=>state.profil[k]=Number(state.profil[k]||0))}if(res.master){if(res.master.unitUsaha)state.unitUsaha=res.master.unitUsaha;if(res.master.kategoriKeluar)state.kategoriKeluar=res.master.kategoriKeluar}saveLocal();applyBranding();loadProfilForm();renderAll();if(showNotif)alert("Data berhasil ditarik")}catch(e){alert("Gagal tarik data: "+e.message)}finally{hideLoading()}}
+function backupJSON(){const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="backup-akuntansi-bumdes-simple.json";a.click()}
+
+
+// ======================================================
+// FILTER DROPDOWN RAMAH PENGGUNA
+// ======================================================
+function labelBulanIndonesia(ym){
+  if(!ym) return "";
+  const d = new Date(ym + "-02");
+  return d.toLocaleDateString("id-ID", {month:"long", year:"numeric"});
+}
+
+function semuaPeriodeData(){
+  const set = new Set();
+  set.add(monthStr());
+  (state.transaksi || []).forEach(t => { if(t.tanggal) set.add(String(t.tanggal).slice(0,7)); });
+  (state.bank || []).forEach(b => { if(b.tanggal) set.add(String(b.tanggal).slice(0,7)); });
+  (state.aset || []).forEach(a => { if(a.tanggal_beli) set.add(String(a.tanggal_beli).slice(0,7)); });
+  Object.keys(state.tutupBuku || {}).forEach(k => set.add(k));
+  return Array.from(set).filter(Boolean).sort().reverse();
+}
+
+function isiDropdownPeriode(){
+  const periode = semuaPeriodeData();
+  ["filter-bulan","lap-bulan","tutup-bulan"].forEach(id=>{
+    const el = $(id);
+    if(!el) return;
+    const lama = el.value || monthStr();
+    el.innerHTML = periode.map(p=>`<option value="${p}">${labelBulanIndonesia(p)}</option>`).join("");
+    el.value = periode.includes(lama) ? lama : monthStr();
+  });
+  isiDropdownFilterKategori();
+}
+
+function isiDropdownFilterKategori(){
+  const el = $("filter-kategori");
+  if(!el) return;
+  const lama = el.value || "SEMUA";
+  const jenis = $("filter-jenis") ? $("filter-jenis").value : "SEMUA";
+  let list = [];
+  if(jenis === "MASUK") list = state.unitUsaha || [];
+  else if(jenis === "KELUAR") list = state.kategoriKeluar || [];
+  else list = [...(state.unitUsaha || []), ...(state.kategoriKeluar || [])];
+
+  const unik = Array.from(new Set(list)).filter(Boolean);
+  el.innerHTML = `<option value="SEMUA">Semua</option>` + unik.map(x=>`<option value="${x}">${x}</option>`).join("");
+  el.value = unik.includes(lama) ? lama : "SEMUA";
+}
+
+function resetFilter(){
+  if($("filter-bulan")) $("filter-bulan").value = monthStr();
+  if($("filter-jenis")) $("filter-jenis").value = "SEMUA";
+  isiDropdownFilterKategori();
+  if($("filter-kategori")) $("filter-kategori").value = "SEMUA";
+  renderAll();
+}
+
+function transaksiTerfilter(){
+  const bulan = $("filter-bulan") ? $("filter-bulan").value : monthStr();
+  const jenis = $("filter-jenis") ? $("filter-jenis").value : "SEMUA";
+  const kategori = $("filter-kategori") ? $("filter-kategori").value : "SEMUA";
+  return (state.transaksi || []).filter(t=>{
+    const okBulan = String(t.tanggal || "").slice(0,7) === bulan;
+    const okJenis = jenis === "SEMUA" || t.jenis === jenis;
+    const okKategori = kategori === "SEMUA" || t.kategori === kategori;
+    return okBulan && okJenis && okKategori;
+  });
+}
+
+const _oldRenderTableFilter = renderTable;
+renderTable = function(){
+  isiDropdownFilterKategori();
+  const rows = transaksiTerfilter();
+  $("tbl-transaksi").innerHTML = rows.map(t=>`<tr><td>${t.id}</td><td>${t.tanggal}</td><td><span class="badge ${t.jenis==="MASUK"?"badge-masuk":"badge-keluar"}">${t.jenis==="MASUK"?"Pemasukan":"Pengeluaran"}</span></td><td>${t.kategori}</td><td>${t.keterangan||""}</td><td>${t.petugas||""}</td><td class="text-right">${formatRupiah(t.nominal)}</td><td><button class="btn-danger" onclick="hapusTransaksi('${t.id}')">Hapus</button></td></tr>`).join("");
+};
+
+// ======================================================
+// REVISI TUTUP BUKU + NERACA STANDAR COREtax SEDERHANA
+// ======================================================
+if(!state.tutupBuku) state.tutupBuku = JSON.parse(localStorage.getItem("simp_tutup_buku") || "{}");
+
+const _oldSaveLocalTB = saveLocal;
+saveLocal = function(){
+  _oldSaveLocalTB();
+  localStorage.setItem("simp_tutup_buku", JSON.stringify(state.tutupBuku || {}));
+};
+
+function getBulanSebelumnya(bulan){
+  const p = bulan.split("-").map(Number);
+  let y = p[0], m = p[1] - 1;
+  if(m === 0){ m = 12; y--; }
+  return y + "-" + String(m).padStart(2,"0");
+}
+
+function getSaldoAwalBulan(bulan){
+  const prev = getBulanSebelumnya(bulan);
+  if(state.tutupBuku && state.tutupBuku[prev] && state.tutupBuku[prev].isClosed){
+    return Number(state.tutupBuku[prev].saldoAkhir || 0);
+  }
+
+  return Number(state.profil.saldoAwal || 0)
+    + state.transaksi
+      .filter(t => String(t.tanggal || "").slice(0,7) < bulan && t.jenis === "MASUK")
+      .reduce((s,t)=>s+Number(t.nominal||0),0)
+    - state.transaksi
+      .filter(t => String(t.tanggal || "").slice(0,7) < bulan && t.jenis === "KELUAR")
+      .reduce((s,t)=>s+Number(t.nominal||0),0);
+}
+
+function getRingkasanBulan(bulan){
+  const saldoAwal = getSaldoAwalBulan(bulan);
+  const pemasukan = totalMasuk(bulan);
+  const pengeluaran = totalKeluar(bulan);
+  const saldoAkhir = saldoAwal + pemasukan - pengeluaran;
+  const nilaiAset = nilaiBukuAset(bulan);
+  const bebanSusut = bebanSusutBulan(bulan);
+  const labaRugi = pemasukan - pengeluaran - bebanSusut;
+
+  return { saldoAwal, pemasukan, pengeluaran, saldoAkhir, nilaiAset, bebanSusut, labaRugi };
+}
+
+function periodeTerkunci(bulan){
+  return !!(state.tutupBuku && state.tutupBuku[bulan] && state.tutupBuku[bulan].isClosed);
+}
+
+const _oldSimpanTransaksiTB = simpanTransaksi;
+simpanTransaksi = function(){
+  const bulan = $("trx-tanggal").value.slice(0,7);
+  if(periodeTerkunci(bulan)) return alert("Periode " + bulan + " sudah tutup buku. Transaksi tidak bisa ditambah.");
+  _oldSimpanTransaksiTB();
+};
+
+const _oldHapusTransaksiTB = hapusTransaksi;
+hapusTransaksi = function(id){
+  const t = state.transaksi.find(x => x.id === id);
+  if(t && periodeTerkunci(String(t.tanggal||"").slice(0,7))) return alert("Periode sudah tutup buku. Transaksi tidak bisa dihapus.");
+  _oldHapusTransaksiTB(id);
+};
+
+const _oldSimpanBankTB = simpanBank;
+simpanBank = function(){
+  const bulan = $("bank-tanggal").value.slice(0,7);
+  if(periodeTerkunci(bulan)) return alert("Periode " + bulan + " sudah tutup buku. Data bank tidak bisa ditambah.");
+  _oldSimpanBankTB();
+};
+
+const _oldSimpanAsetTB = simpanAset;
+simpanAset = function(){
+  const bulan = $("aset-tanggal").value.slice(0,7);
+  if(periodeTerkunci(bulan)) return alert("Periode " + bulan + " sudah tutup buku. Aset tidak bisa ditambah.");
+  _oldSimpanAsetTB();
+};
+
+function saldoKasSampai(bulan=null){
+  if(!bulan) {
+    const b = $("filter-bulan") ? $("filter-bulan").value : monthStr();
+    const r = getRingkasanBulan(b);
+    return r.saldoAkhir;
+  }
+  const r = getRingkasanBulan(bulan);
+  return r.saldoAkhir;
+}
+
+function renderTutupBuku(){
+  if(!$("tutup-bulan")) return;
+  if(!$("tutup-bulan").value) $("tutup-bulan").value = monthStr();
+
+  const bulan = $("tutup-bulan").value;
+  const r = getRingkasanBulan(bulan);
+  const closed = periodeTerkunci(bulan);
+
+  $("tutup-status").value = closed ? "SUDAH TUTUP BUKU" : "BELUM TUTUP BUKU";
+
+  $("tbl-ringkas-tutup").innerHTML = `
+    <tr><td>Saldo Awal Bulan</td><td class="text-right">${formatRupiah(r.saldoAwal)}</td></tr>
+    <tr><td>Total Pemasukan</td><td class="text-right">${formatRupiah(r.pemasukan)}</td></tr>
+    <tr><td>Total Pengeluaran</td><td class="text-right">${formatRupiah(r.pengeluaran)}</td></tr>
+    <tr class="row-total"><td>Saldo Akhir Bulan</td><td class="text-right">${formatRupiah(r.saldoAkhir)}</td></tr>
+    <tr><td>Beban Penyusutan Bulan Ini</td><td class="text-right">${formatRupiah(r.bebanSusut)}</td></tr>
+    <tr><td>Laba/Rugi Setelah Penyusutan</td><td class="text-right">${formatRupiah(r.labaRugi)}</td></tr>
+  `;
+
+  const rows = Object.keys(state.tutupBuku || {}).sort().map(k=>{
+    const x = state.tutupBuku[k];
+    return `<tr>
+      <td>${k}</td>
+      <td>${(x.tanggalTutup || "").slice(0,10)}</td>
+      <td class="text-right">${formatRupiah(x.saldoAwal)}</td>
+      <td class="text-right">${formatRupiah(x.pemasukan)}</td>
+      <td class="text-right">${formatRupiah(x.pengeluaran)}</td>
+      <td class="text-right">${formatRupiah(x.saldoAkhir)}</td>
+      <td>${x.isClosed ? "TUTUP" : "BUKA"}</td>
+      <td class="no-print"><button class="btn-danger" onclick="bukaTutupBuku('${k}')">Buka</button></td>
+    </tr>`;
+  }).join("");
+  $("tbl-tutup-buku").innerHTML = rows;
+}
+
+function prosesTutupBuku(){
+  const bulan = $("tutup-bulan").value || monthStr();
+  if(periodeTerkunci(bulan)) return alert("Periode ini sudah tutup buku.");
+
+  const r = getRingkasanBulan(bulan);
+  if(!confirm(`Tutup buku periode ${bulan}?\n\nSaldo akhir ${formatRupiah(r.saldoAkhir)} akan menjadi saldo awal bulan berikutnya.`)) return;
+
+  state.tutupBuku[bulan] = {
+    isClosed: true,
+    tanggalTutup: new Date().toISOString(),
+    saldoAwal: r.saldoAwal,
+    pemasukan: r.pemasukan,
+    pengeluaran: r.pengeluaran,
+    saldoAkhir: r.saldoAkhir,
+    bebanSusut: r.bebanSusut,
+    labaRugi: r.labaRugi
+  };
+
+  saveLocal();
+  syncToGasBackend("add_tutup_buku", {periode: bulan, ...state.tutupBuku[bulan]});
+  renderAll();
+  renderTutupBuku();
+  alert("Tutup buku berhasil.");
+}
+
+function bukaTutupBuku(bulan){
+  if(!confirm("Buka kembali tutup buku periode " + bulan + "?")) return;
+  if(state.tutupBuku[bulan]) state.tutupBuku[bulan].isClosed = false;
+  saveLocal();
+  syncToGasBackend("update_tutup_buku", {periode: bulan, isClosed:false});
+  renderAll();
+  renderTutupBuku();
+}
+
+function updateDashboard(){
+  const b=$("filter-bulan").value;
+  const r = getRingkasanBulan(b);
+  $("m-in").innerText=formatRupiah(r.pemasukan);
+  $("m-out").innerText=formatRupiah(r.pengeluaran);
+  $("m-kas").innerText=formatRupiah(r.saldoAkhir);
+  $("m-aset").innerText=formatRupiah(r.nilaiAset);
+}
+
+function lapArusKas(b){
+  setReportHeader("LAPORAN ARUS KAS",b);
+  const r = getRingkasanBulan(b);
+  $("rep-content").innerHTML=`<table class="report-table">
+    <thead><tr><th>Uraian</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr><td>Saldo Kas Awal Periode</td><td class="text-right">${formatRupiah(r.saldoAwal)}</td></tr>
+      <tr class="row-cat"><td colspan="2">Arus Kas Operasional</td></tr>
+      <tr><td style="padding-left:2rem">Penerimaan Kas dari Kegiatan Usaha</td><td class="text-right">${formatRupiah(r.pemasukan)}</td></tr>
+      <tr><td style="padding-left:2rem">Pengeluaran Kas untuk Operasional</td><td class="text-right">${formatRupiah(r.pengeluaran)}</td></tr>
+      <tr class="row-total"><td>Kenaikan / Penurunan Kas Bersih</td><td class="text-right">${formatRupiah(r.pemasukan-r.pengeluaran)}</td></tr>
+      <tr class="row-total"><td>Saldo Kas Akhir Periode</td><td class="text-right">${formatRupiah(r.saldoAkhir)}</td></tr>
+    </tbody></table>`;
+}
+
+function lapNeraca(b){
+  setReportHeader("LAPORAN POSISI KEUANGAN / NERACA",b);
+
+  const r = getRingkasanBulan(b);
+
+  // Format Coretax sederhana:
+  // ASET = Kas + Aset Tetap Bersih
+  // LIABILITAS = Utang
+  // EKUITAS = Modal Awal / Penyertaan Modal + Saldo Laba Berjalan
+  const kas = r.saldoAkhir;
+  const asetTetap = r.nilaiAset;
+  const totalAset = kas + asetTetap;
+
+  const utang = Number(state.profil.utang || 0);
+  const modal = Number(state.profil.modal || 0);
+  const saldoLabaBerjalan = totalAset - utang - modal; 
+  const totalEkuitas = modal + saldoLabaBerjalan;
+  const totalLiabilitasEkuitas = utang + totalEkuitas;
+  const selisih = totalAset - totalLiabilitasEkuitas;
+  const ok = Math.abs(selisih) < 1;
+
+  $("rep-content").innerHTML=`
+  <table class="report-table">
+    <thead><tr><th>ASET</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">ASET LANCAR</td></tr>
+      <tr><td style="padding-left:2rem">Kas dan Setara Kas</td><td class="text-right">${formatRupiah(kas)}</td></tr>
+      <tr class="row-cat"><td colspan="2">ASET TETAP</td></tr>
+      <tr><td style="padding-left:2rem">Inventaris / Aset Tetap Bersih</td><td class="text-right">${formatRupiah(asetTetap)}</td></tr>
+      <tr class="row-total"><td>TOTAL ASET</td><td class="text-right">${formatRupiah(totalAset)}</td></tr>
+    </tbody>
+  </table>
+
+  <br>
+
+  <table class="report-table">
+    <thead><tr><th>LIABILITAS DAN EKUITAS</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">LIABILITAS</td></tr>
+      <tr><td style="padding-left:2rem">Utang / Kewajiban</td><td class="text-right">${formatRupiah(utang)}</td></tr>
+      <tr class="row-total"><td>Total Liabilitas</td><td class="text-right">${formatRupiah(utang)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">EKUITAS</td></tr>
+      <tr><td style="padding-left:2rem">Modal Awal / Penyertaan Modal</td><td class="text-right">${formatRupiah(modal)}</td></tr>
+      <tr><td style="padding-left:2rem">Saldo Laba / Akumulasi Hasil Usaha</td><td class="text-right">${formatRupiah(saldoLabaBerjalan)}</td></tr>
+      <tr class="row-total"><td>Total Ekuitas</td><td class="text-right">${formatRupiah(totalEkuitas)}</td></tr>
+      <tr class="row-total"><td>TOTAL LIABILITAS DAN EKUITAS</td><td class="text-right">${formatRupiah(totalLiabilitasEkuitas)}</td></tr>
+      <tr><td>Selisih Neraca</td><td class="text-right ${ok?'text-success':'text-danger'}">${formatRupiah(selisih)}</td></tr>
+      <tr class="row-total"><td>Status</td><td class="text-right ${ok?'text-success':'text-danger'}">${ok?'BALANCE':'PERLU CEK INPUT'}</td></tr>
+    </tbody>
+  </table>
+
+  <p style="font-size:11px;color:#64748b;margin-top:12px">
+    Catatan: Format ini mengikuti struktur dasar laporan posisi keuangan untuk kebutuhan administrasi, pemeringkatan BUMDes, dan ringkasan pajak/Coretax sederhana: Aset = Liabilitas + Ekuitas.
+  </p>`;
+}
+
+const _oldRenderAllTB = renderAll;
+renderAll = function(){
+  isiDropdownPeriode();
+  _oldRenderAllTB();
+  if($("tutup-bulan") && !$("tutup-bulan").value) $("tutup-bulan").value = monthStr();
+  renderTutupBuku();
+};
+
+const _oldTarikDataTB = tarikDataDariSheets;
+tarikDataDariSheets = async function(showNotif=true){
+  if(!state.gasUrl||state.gasUrl==="PASTE_URL_GAS_DISINI"){
+    if(showNotif)alert("URL GAS belum diganti di DEFAULT_CONFIG.");
+    return;
+  }
+  try{
+    showLoading();
+    const r=await fetch(state.gasUrl+"?action=tarikData");
+    const res=await r.json();
+    if(res.transaksi)state.transaksi=res.transaksi;
+    if(res.bank)state.bank=res.bank;
+    if(res.aset)state.aset=res.aset.map(a=>({id:a.id,nama:a.nama,tanggal_beli:a.tanggal_beli,harga:Number(a.harga||0),umur:Number(a.umur||1),sisa:Number(a.sisa||0)}));
+    if(res.tutup_buku){
+      state.tutupBuku = {};
+      res.tutup_buku.forEach(x=>{
+        state.tutupBuku[x.periode] = {
+          isClosed: String(x.isClosed).toLowerCase() !== "false",
+          tanggalTutup: x.tanggalTutup,
+          saldoAwal: Number(x.saldoAwal||0),
+          pemasukan: Number(x.pemasukan||0),
+          pengeluaran: Number(x.pengeluaran||0),
+          saldoAkhir: Number(x.saldoAkhir||0),
+          bebanSusut: Number(x.bebanSusut||0),
+          labaRugi: Number(x.labaRugi||0)
+        };
+      });
+    }
+    if(res.profil_sistem){
+      let p={};res.profil_sistem.forEach(row=>p[row.Parameter_Key]=row.Value_Data);
+      state.profil={...state.profil,...p,logo:DEFAULT_CONFIG.LOGO_URL};
+      ["saldoAwal","utang","modal"].forEach(k=>state.profil[k]=Number(state.profil[k]||0));
+    }
+    if(res.master){
+      if(res.master.unitUsaha)state.unitUsaha=res.master.unitUsaha;
+      if(res.master.kategoriKeluar)state.kategoriKeluar=res.master.kategoriKeluar;
+    }
+    saveLocal();applyBranding();loadProfilForm();renderAll();
+    if(showNotif)alert("Data berhasil ditarik");
+  }catch(e){alert("Gagal tarik data: "+e.message)}finally{hideLoading()}
+};
+
+
+// ======================================================
+// PETUGAS OTOMATIS SESUAI LOGIN
+// ======================================================
+function getNamaPetugasLogin(){
+  if(currentUserLogin && currentUserLogin.nama) return currentUserLogin.nama;
+  return "Administrator";
+}
+
+function updatePetugasLogin(){
+  if($("trx-petugas")){
+    $("trx-petugas").value = getNamaPetugasLogin();
+    $("trx-petugas").readOnly = true;
+  }
+  const roleText = currentUserLogin ? `${currentUserLogin.nama} (${currentUserLogin.role})` : "Administrator";
+  if($("page-title")){
+    // tidak mengubah judul menu, hanya memastikan petugas tersedia
+  }
+}
+
+const _oldSimpanTransaksiPetugas = simpanTransaksi;
+simpanTransaksi = function(){
+  updatePetugasLogin();
+  _oldSimpanTransaksiPetugas();
+};
+
+const _oldRenderAllPetugas = renderAll;
+renderAll = function(){
+  updatePetugasLogin();
+  _oldRenderAllPetugas();
+};
+
+
+// ======================================================
+// FIX MASTER UNIT/KATEGORI: HAPUS JUGA UPDATE KE GOOGLE SHEET
+// ======================================================
+function hapusUnit(v){
+  if(!confirm("Hapus unit usaha: " + v + "?")) return;
+
+  state.unitUsaha = state.unitUsaha.filter(function(x){
+    return x !== v;
+  });
+
+  saveLocal();
+
+  syncToGasBackend("updateMaster", {
+    unitUsaha: state.unitUsaha,
+    kategoriKeluar: state.kategoriKeluar
+  });
+
+  renderAll();
+}
+
+function hapusKategori(v){
+  if(!confirm("Hapus kategori pengeluaran: " + v + "?")) return;
+
+  state.kategoriKeluar = state.kategoriKeluar.filter(function(x){
+    return x !== v;
+  });
+
+  saveLocal();
+
+  syncToGasBackend("updateMaster", {
+    unitUsaha: state.unitUsaha,
+    kategoriKeluar: state.kategoriKeluar
+  });
+
+  renderAll();
+}
+
+
+// ======================================================
+// FIX TAMBAH MASTER AMAN
+// ======================================================
+function tambahUnit(){
+  const v = $("new-unit").value.trim();
+  if(!v) return;
+
+  if(!state.unitUsaha.includes(v)){
+    state.unitUsaha.push(v);
+  }
+
+  $("new-unit").value = "";
+  saveLocal();
+
+  syncToGasBackend("updateMaster", {
+    unitUsaha: state.unitUsaha,
+    kategoriKeluar: state.kategoriKeluar
+  });
+
+  renderAll();
+}
+
+function tambahKategori(){
+  const v = $("new-kategori").value.trim();
+  if(!v) return;
+
+  if(!state.kategoriKeluar.includes(v)){
+    state.kategoriKeluar.push(v);
+  }
+
+  $("new-kategori").value = "";
+  saveLocal();
+
+  syncToGasBackend("updateMaster", {
+    unitUsaha: state.unitUsaha,
+    kategoriKeluar: state.kategoriKeluar
+  });
+
+  renderAll();
+}
+
+
+// ======================================================
+// DASHBOARD ANALITIK UNIT USAHA
+// ======================================================
+var chartUnitUsaha = null;
+var chartKontribusiUnit = null;
+
+function getBulanDashboard(){
+  if($("filter-bulan") && $("filter-bulan").value) return $("filter-bulan").value;
+  if($("lap-bulan") && $("lap-bulan").value) return $("lap-bulan").value;
+  return monthStr();
+}
+
+function dataPendapatanUnitUsaha(bulan){
+  var data = {};
+  (state.unitUsaha || []).forEach(function(u){ data[u] = 0; });
+
+  (state.transaksi || [])
+    .filter(function(t){
+      return t.jenis === "MASUK" && String(t.tanggal || "").slice(0,7) === bulan;
+    })
+    .forEach(function(t){
+      var key = t.kategori || "Tanpa Unit";
+      if(data[key] === undefined) data[key] = 0;
+      data[key] += Number(t.nominal || 0);
+    });
+
+  var labels = [];
+  var values = [];
+  Object.keys(data).forEach(function(k){
+    if(Number(data[k] || 0) > 0){
+      labels.push(k);
+      values.push(Number(data[k] || 0));
+    }
+  });
+  return {labels: labels, values: values};
+}
+
+function renderDashboardAnalitik(){
+  var bulan = getBulanDashboard();
+  var d = dataPendapatanUnitUsaha(bulan);
+  renderChartUnitUsaha(d.labels, d.values);
+  renderChartKontribusiUnit(d.labels, d.values);
+  renderRingkasanKinerjaUnit(d.labels, d.values);
+}
+
+function renderChartUnitUsaha(labels, values){
+  var ctx = $("chartUnitUsaha");
+  if(!ctx) return;
+  if(chartUnitUsaha) chartUnitUsaha.destroy();
+
+  chartUnitUsaha = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels.length ? labels : ["Belum ada data"],
+      datasets: [{ label: "Pendapatan Unit Usaha", data: values.length ? values : [0] }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function(context){ return formatRupiah(context.raw || 0); } } }
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { callback: function(value){ return formatRupiah(value); } } }
+      }
+    }
+  });
+}
+
+function renderChartKontribusiUnit(labels, values){
+  var ctx = $("chartKontribusiUnit");
+  if(!ctx) return;
+  if(chartKontribusiUnit) chartKontribusiUnit.destroy();
+
+  chartKontribusiUnit = new Chart(ctx, {
+    type: "doughnut",
+    data: {
+      labels: labels.length ? labels : ["Belum ada data"],
+      datasets: [{ data: values.length ? values : [1] }]
+    },
+    options: {
+      responsive: true,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: function(context){
+              var total = context.dataset.data.reduce(function(a,b){ return a + Number(b || 0); }, 0);
+              var val = Number(context.raw || 0);
+              var pct = total ? ((val / total) * 100).toFixed(1) : "0.0";
+              return context.label + ": " + formatRupiah(val) + " (" + pct + "%)";
+            }
+          }
+        }
+      }
+    }
+  });
+}
+
+function renderRingkasanKinerjaUnit(labels, values){
+  var el = $("ringkasan-kinerja");
+  if(!el) return;
+
+  if(!values.length){
+    el.innerHTML = `<div style="padding:12px;border:1px dashed var(--border);border-radius:12px;text-align:center;color:var(--muted)">Belum ada pemasukan unit usaha pada periode ini.</div>`;
+    return;
+  }
+
+  var total = values.reduce(function(a,b){ return a + Number(b || 0); }, 0);
+  var max = Math.max.apply(null, values);
+  var idx = values.indexOf(max);
+  var unitTerbaik = labels[idx] || "-";
+  var persen = total ? ((max / total) * 100).toFixed(1) : "0.0";
+
+  el.innerHTML = `
+    <div style="display:grid;gap:10px">
+      <div style="padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:12px;color:var(--muted);font-weight:800">Unit Usaha Terbaik</div>
+        <div style="font-size:20px;font-weight:900;color:var(--primary)">🏆 ${unitTerbaik}</div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:12px;color:var(--muted);font-weight:800">Pendapatan Tertinggi</div>
+        <div style="font-size:20px;font-weight:900;color:var(--success)">${formatRupiah(max)}</div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:12px;color:var(--muted);font-weight:800">Kontribusi terhadap Pendapatan</div>
+        <div style="font-size:20px;font-weight:900">${persen}%</div>
+      </div>
+      <div style="padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:12px">
+        <div style="font-size:12px;color:var(--muted);font-weight:800">Total Pendapatan Unit</div>
+        <div style="font-size:20px;font-weight:900">${formatRupiah(total)}</div>
+      </div>
+    </div>`;
+}
+
+if(typeof renderAll === "function" && !window.__dashboardAnalitikWrapped){
+  window.__dashboardAnalitikWrapped = true;
+  var _renderAllDashboardAnalitik = renderAll;
+  renderAll = function(){
+    _renderAllDashboardAnalitik();
+    setTimeout(renderDashboardAnalitik, 50);
+  };
+}
+
+
+// ======================================================
+// RIWAYAT TRANSAKSI DI BAWAH FORM + EDIT + LOAD MORE
+// ======================================================
+var editingTransaksiId = null;
+var transaksiLimit = 20;
+
+function urutTransaksiTerbaru(){
+  return (state.transaksi || []).slice().sort(function(a,b){
+    var ta = String(a.tanggal || '') + String(a.id || '');
+    var tb = String(b.tanggal || '') + String(b.id || '');
+    return tb.localeCompare(ta);
+  });
+}
+
+function labelJenisTransaksi(jenis){
+  return jenis === 'MASUK' ? 'Pemasukan' : 'Pengeluaran';
+}
+
+function badgeJenisTransaksi(jenis){
+  return `<span class="badge ${jenis === 'MASUK' ? 'badge-masuk' : 'badge-keluar'}">${labelJenisTransaksi(jenis)}</span>`;
+}
+
+function renderAksiTransaksi(id){
+  return `<div class="aksi-wrap">
+    <button class="btn-warning btn-small" onclick="editTransaksi('${id}')">Edit</button>
+    <button class="btn-danger btn-small" onclick="hapusTransaksi('${id}')">Hapus</button>
+  </div>`;
+}
+
+function renderRiwayatTransaksiInput(){
+  var tbody = $('tbl-transaksi-input');
+  if(!tbody) return;
+
+  var data = urutTransaksiTerbaru();
+  var tampil = data.slice(0, transaksiLimit);
+
+  if(!tampil.length){
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:18px">Belum ada transaksi. Setelah simpan, riwayat akan muncul di sini.</td></tr>`;
+  } else {
+    tbody.innerHTML = tampil.map(function(t){
+      return `<tr>
+        <td>${t.tanggal || ''}</td>
+        <td>${badgeJenisTransaksi(t.jenis)}</td>
+        <td>${t.kategori || ''}</td>
+        <td>${t.keterangan || ''}</td>
+        <td>${t.petugas || ''}</td>
+        <td class="text-right ${t.jenis === 'MASUK' ? 'text-success' : 'text-danger'}">${formatRupiah(t.nominal)}</td>
+        <td>${renderAksiTransaksi(t.id)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  var info = $('info-riwayat-transaksi');
+  if(info) info.innerText = `Tampil ${Math.min(transaksiLimit, data.length)} dari ${data.length} transaksi`;
+
+  var btn = $('btn-load-more-transaksi');
+  if(btn) btn.style.display = data.length > transaksiLimit ? 'inline-flex' : 'none';
+}
+
+function loadMoreTransaksi(){
+  transaksiLimit += 20;
+  renderRiwayatTransaksiInput();
+}
+
+function batalEditTransaksi(){
+  editingTransaksiId = null;
+  if($('trx-tanggal')) $('trx-tanggal').value = todayStr();
+  if($('trx-jenis')) $('trx-jenis').value = 'MASUK';
+  aturKategori();
+  if($('trx-keterangan')) $('trx-keterangan').value = '';
+  if($('trx-nominal')) $('trx-nominal').value = '';
+  updatePetugasLogin();
+  updateModeEditTransaksi();
+}
+
+function updateModeEditTransaksi(){
+  var mode = $('mode-edit-transaksi');
+  var btnSimpan = $('btn-simpan-transaksi');
+  var btnBatal = $('btn-batal-edit-transaksi');
+
+  if(editingTransaksiId){
+    if(mode) mode.innerText = 'Mode koreksi/edit transaksi';
+    if(btnSimpan) btnSimpan.innerText = '✅ Update Transaksi';
+    if(btnBatal) btnBatal.style.display = 'inline-flex';
+  } else {
+    if(mode) mode.innerText = '';
+    if(btnSimpan) btnSimpan.innerText = '💾 Simpan Transaksi';
+    if(btnBatal) btnBatal.style.display = 'none';
+  }
+}
+
+function editTransaksi(id){
+  var trx = (state.transaksi || []).find(function(x){ return x.id === id; });
+  if(!trx) return alert('Transaksi tidak ditemukan.');
+
+  var bulanLama = String(trx.tanggal || '').slice(0,7);
+  if(periodeTerkunci(bulanLama)) return alert('Periode sudah tutup buku. Transaksi tidak bisa diedit.');
+
+  editingTransaksiId = id;
+  showSec('transaksi', null);
+
+  $('trx-tanggal').value = trx.tanggal || todayStr();
+  $('trx-jenis').value = trx.jenis || 'MASUK';
+  aturKategori();
+  $('trx-kategori').value = trx.kategori || '';
+  $('trx-keterangan').value = trx.keterangan || '';
+  $('trx-nominal').value = Number(trx.nominal || 0);
+  updatePetugasLogin();
+  updateModeEditTransaksi();
+
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+async function sinkronEditTransaksiKeSheet(dataBaru){
+  if(!state.gasUrl || state.gasUrl === 'PASTE_URL_GAS_DISINI') return;
+  try{
+    // GAS yang dipakai sudah punya delete_transaksi dan add_transaksi.
+    // Edit dilakukan dengan hapus baris lama lalu tambah ulang data yang sudah dikoreksi.
+    await syncToGasBackend('delete_transaksi', {id:dataBaru.id});
+    await syncToGasBackend('add_transaksi', dataBaru);
+  }catch(e){
+    console.error('Gagal sinkron edit transaksi:', e);
+  }
+}
+
+function ambilPayloadTransaksi(idOverride){
+  return {
+    id: idOverride || ('TRX-' + Date.now().toString().slice(-8)),
+    tanggal: $('trx-tanggal').value,
+    jenis: $('trx-jenis').value,
+    kategori: $('trx-kategori').value,
+    keterangan: $('trx-keterangan').value,
+    nominal: Number($('trx-nominal').value || 0),
+    petugas: getNamaPetugasLogin()
+  };
+}
+
+simpanTransaksi = async function(){
+  updatePetugasLogin();
+
+  var data = ambilPayloadTransaksi(editingTransaksiId);
+  if(!data.tanggal || !data.kategori || !data.nominal) return alert('Lengkapi tanggal, unit/kategori, dan nominal transaksi.');
+
+  var bulanBaru = String(data.tanggal || '').slice(0,7);
+  if(periodeTerkunci(bulanBaru)) return alert('Periode ' + bulanBaru + ' sudah tutup buku. Transaksi tidak bisa disimpan.');
+
+  if(editingTransaksiId){
+    var idx = state.transaksi.findIndex(function(x){ return x.id === editingTransaksiId; });
+    if(idx < 0) return alert('Data lama tidak ditemukan.');
+
+    var bulanLama = String(state.transaksi[idx].tanggal || '').slice(0,7);
+    if(periodeTerkunci(bulanLama)) return alert('Periode lama sudah tutup buku. Transaksi tidak bisa diedit.');
+
+    state.transaksi[idx] = data;
+    saveLocal();
+    await sinkronEditTransaksiKeSheet(data);
+    alert('Transaksi berhasil diperbarui.');
+  } else {
+    state.transaksi.unshift(data);
+    saveLocal();
+    await syncToGasBackend('add_transaksi', data);
+    alert('Transaksi tersimpan.');
+  }
+
+  editingTransaksiId = null;
+  $('trx-keterangan').value = '';
+  $('trx-nominal').value = '';
+  $('trx-tanggal').value = todayStr();
+  $('trx-jenis').value = 'MASUK';
+  aturKategori();
+  updatePetugasLogin();
+  updateModeEditTransaksi();
+  transaksiLimit = Math.max(transaksiLimit, 20);
+  renderAll();
+};
+
+hapusTransaksi = function(id){
+  var trx = (state.transaksi || []).find(function(x){ return x.id === id; });
+  if(trx && periodeTerkunci(String(trx.tanggal || '').slice(0,7))) return alert('Periode sudah tutup buku. Transaksi tidak bisa dihapus.');
+  if(!confirm('Hapus transaksi ini?')) return;
+
+  state.transaksi = (state.transaksi || []).filter(function(t){ return t.id !== id; });
+  saveLocal();
+  syncToGasBackend('delete_transaksi', {id:id});
+
+  if(editingTransaksiId === id) batalEditTransaksi();
+  renderAll();
+};
+
+renderTable = function(){
+  isiDropdownFilterKategori();
+  var rows = transaksiTerfilter();
+  $('tbl-transaksi').innerHTML = rows.map(function(t){
+    return `<tr>
+      <td>${t.id}</td>
+      <td>${t.tanggal}</td>
+      <td>${badgeJenisTransaksi(t.jenis)}</td>
+      <td>${t.kategori}</td>
+      <td>${t.keterangan || ''}</td>
+      <td>${t.petugas || ''}</td>
+      <td class="text-right ${t.jenis === 'MASUK' ? 'text-success' : 'text-danger'}">${formatRupiah(t.nominal)}</td>
+      <td>${renderAksiTransaksi(t.id)}</td>
+    </tr>`;
+  }).join('');
+};
+
+var _renderAllRiwayatTransaksi = renderAll;
+renderAll = function(){
+  _renderAllRiwayatTransaksi();
+  renderRiwayatTransaksiInput();
+  updateModeEditTransaksi();
+};
+
+
+// ======================================================
+// SISTEM PERIODE AKTIF + KUNCI PERIODE LAPORAN
+// ======================================================
+var periodeAktifAplikasi = localStorage.getItem("simp_periode_aktif") || monthStr();
+var kunciPeriodeAktif = (localStorage.getItem("simp_kunci_periode_aktif") || "YA");
+
+function getPeriodeAktif(){
+  return periodeAktifAplikasi || monthStr();
+}
+
+function getTanggalAwalPeriode(periode){
+  return (periode || getPeriodeAktif()) + "-01";
+}
+
+function namaPeriodeAktif(){
+  return labelBulanIndonesia(getPeriodeAktif());
+}
+
+function daftarPeriodeAktifLengkap(){
+  var set = new Set();
+
+  var aktif = getPeriodeAktif();
+  set.add(aktif);
+  set.add(monthStr());
+
+  // Sediakan semua bulan pada tahun aktif supaya aplikasi bisa dipakai untuk input transaksi lama.
+  var tahunAktif = Number(String(aktif).slice(0,4)) || new Date().getFullYear();
+  for(var m=1; m<=12; m++){
+    set.add(tahunAktif + "-" + String(m).padStart(2,"0"));
+  }
+
+  (state.transaksi || []).forEach(function(t){ if(t.tanggal) set.add(String(t.tanggal).slice(0,7)); });
+  (state.bank || []).forEach(function(b){ if(b.tanggal) set.add(String(b.tanggal).slice(0,7)); });
+  (state.aset || []).forEach(function(a){ if(a.tanggal_beli) set.add(String(a.tanggal_beli).slice(0,7)); });
+  Object.keys(state.tutupBuku || {}).forEach(function(k){ set.add(k); });
+
+  return Array.from(set).filter(Boolean).sort().reverse();
+}
+
+function isiDropdownPeriodeAktif(){
+  var daftar = daftarPeriodeAktifLengkap();
+  ["periode-aktif-dashboard","periode-aktif-transaksi"].forEach(function(id){
+    var el = $(id);
+    if(!el) return;
+    var lama = el.value || getPeriodeAktif();
+    el.innerHTML = daftar.map(function(p){
+      return `<option value="${p}">${labelBulanIndonesia(p)}</option>`;
+    }).join("");
+    el.value = daftar.includes(lama) ? lama : getPeriodeAktif();
+  });
+
+  ["kunci-periode-dashboard","kunci-periode-transaksi"].forEach(function(id){
+    var el = $(id);
+    if(el) el.value = kunciPeriodeAktif;
+  });
+
+  updateInfoPeriodeAktif();
+}
+
+function updateInfoPeriodeAktif(){
+  var label = "Periode aktif: " + namaPeriodeAktif();
+  ["periode-status-dashboard","periode-status-transaksi"].forEach(function(id){
+    var el = $(id);
+    if(el) el.innerText = label;
+  });
+
+  var info = $("periode-info-transaksi");
+  if(info){
+    info.innerText = kunciPeriodeAktif === "YA"
+      ? "Tanggal transaksi wajib berada pada " + namaPeriodeAktif() + ". Jika beda bulan, aplikasi akan memberi peringatan."
+      : "Mode bebas aktif. Tanggal beda bulan masih diizinkan.";
+  }
+}
+
+function setKunciPeriodeAktif(value){
+  kunciPeriodeAktif = value === "TIDAK" ? "TIDAK" : "YA";
+  localStorage.setItem("simp_kunci_periode_aktif", kunciPeriodeAktif);
+  isiDropdownPeriodeAktif();
+  cekTanggalTransaksiPeriode(false);
+}
+
+function setPeriodeAktif(periode){
+  if(!periode) return;
+  periodeAktifAplikasi = periode;
+  localStorage.setItem("simp_periode_aktif", periodeAktifAplikasi);
+
+  // Semua filter utama dibuat konsisten mengikuti periode aktif.
+  if($("filter-bulan")) $("filter-bulan").value = periodeAktifAplikasi;
+  if($("lap-bulan")) $("lap-bulan").value = periodeAktifAplikasi;
+  if($("tutup-bulan")) $("tutup-bulan").value = periodeAktifAplikasi;
+
+  // Form transaksi diarahkan ke tanggal awal periode aktif.
+  if($("trx-tanggal")){
+    var bulanTanggal = String($("trx-tanggal").value || "").slice(0,7);
+    if(kunciPeriodeAktif === "YA" && bulanTanggal !== periodeAktifAplikasi){
+      $("trx-tanggal").value = getTanggalAwalPeriode(periodeAktifAplikasi);
+    }
+  }
+
+  isiDropdownPeriodeAktif();
+  transaksiLimit = 20;
+  renderAll();
+  setTimeout(renderDashboardAnalitik, 80);
+}
+
+function cekTanggalTransaksiPeriode(showAlert){
+  var el = $("trx-tanggal");
+  if(!el || !el.value) return true;
+
+  var bulanTanggal = String(el.value).slice(0,7);
+  var aktif = getPeriodeAktif();
+
+  if(kunciPeriodeAktif === "YA" && bulanTanggal !== aktif){
+    if(showAlert !== false){
+      alert(
+        "Tanggal transaksi tidak sesuai periode aktif.\n\n" +
+        "Periode aktif: " + labelBulanIndonesia(aktif) + "\n" +
+        "Tanggal dipilih: " + labelBulanIndonesia(bulanTanggal) + "\n\n" +
+        "Aplikasi akan mengembalikan tanggal ke periode aktif agar laporan tidak keliru."
+      );
+    }
+    el.value = getTanggalAwalPeriode(aktif);
+    return false;
+  }
+
+  return true;
+}
+
+function transaksiPeriodeAktif(){
+  var aktif = getPeriodeAktif();
+  return (state.transaksi || []).filter(function(t){
+    return String(t.tanggal || "").slice(0,7) === aktif;
+  });
+}
+
+// Tambahkan periode aktif ke dropdown bawaan.
+var _semuaPeriodeDataPeriodLock = semuaPeriodeData;
+semuaPeriodeData = function(){
+  var base = _semuaPeriodeDataPeriodLock();
+  var set = new Set(base.concat(daftarPeriodeAktifLengkap()));
+  return Array.from(set).filter(Boolean).sort().reverse();
+};
+
+// Dashboard harus selalu membaca periode aktif, bukan tanggal sistem / filter yang tercecer.
+updateDashboard = function(){
+  var b = getPeriodeAktif();
+  var r = getRingkasanBulan(b);
+  $("m-in").innerText = formatRupiah(r.pemasukan);
+  $("m-out").innerText = formatRupiah(r.pengeluaran);
+  $("m-kas").innerText = formatRupiah(r.saldoAkhir);
+  $("m-aset").innerText = formatRupiah(r.nilaiAset);
+};
+
+// Grafik analitik unit usaha juga wajib membaca periode aktif.
+getBulanDashboard = function(){
+  return getPeriodeAktif();
+};
+
+// Riwayat di bawah input transaksi hanya menampilkan periode aktif agar operator tidak bingung.
+urutTransaksiTerbaru = function(){
+  return transaksiPeriodeAktif().slice().sort(function(a,b){
+    var ta = String(a.tanggal || "") + String(a.id || "");
+    var tb = String(b.tanggal || "") + String(b.id || "");
+    return tb.localeCompare(ta);
+  });
+};
+
+// Filter data transaksi default mengikuti periode aktif.
+var _resetFilterPeriodLock = resetFilter;
+resetFilter = function(){
+  if($("filter-bulan")) $("filter-bulan").value = getPeriodeAktif();
+  if($("filter-jenis")) $("filter-jenis").value = "SEMUA";
+  isiDropdownFilterKategori();
+  if($("filter-kategori")) $("filter-kategori").value = "SEMUA";
+  renderAll();
+};
+
+// Simpan transaksi dicek agar sesuai periode aktif.
+var _simpanTransaksiPeriodLock = simpanTransaksi;
+simpanTransaksi = async function(){
+  if(!cekTanggalTransaksiPeriode(true)) return;
+
+  var dataBulan = String($("trx-tanggal").value || "").slice(0,7);
+  if(kunciPeriodeAktif === "YA" && dataBulan !== getPeriodeAktif()){
+    return alert("Transaksi ditolak karena tidak sesuai periode aktif.");
+  }
+
+  await _simpanTransaksiPeriodLock();
+
+  if($("trx-tanggal")) $("trx-tanggal").value = getTanggalAwalPeriode(getPeriodeAktif());
+  setTimeout(renderDashboardAnalitik, 80);
+};
+
+// Saat edit transaksi beda periode, arahkan user pindah periode aktif dulu.
+var _editTransaksiPeriodLock = editTransaksi;
+editTransaksi = function(id){
+  var trx = (state.transaksi || []).find(function(x){ return x.id === id; });
+  if(!trx) return alert("Transaksi tidak ditemukan.");
+
+  var bulanTrx = String(trx.tanggal || "").slice(0,7);
+  if(kunciPeriodeAktif === "YA" && bulanTrx !== getPeriodeAktif()){
+    if(confirm("Transaksi ini berada pada " + labelBulanIndonesia(bulanTrx) + ".\n\nPindahkan periode aktif ke bulan tersebut untuk mengedit?")){
+      setPeriodeAktif(bulanTrx);
+    } else {
+      return;
+    }
+  }
+
+  _editTransaksiPeriodLock(id);
+};
+
+// Batal edit kembali ke tanggal awal periode aktif.
+var _batalEditTransaksiPeriodLock = batalEditTransaksi;
+batalEditTransaksi = function(){
+  _batalEditTransaksiPeriodLock();
+  if($("trx-tanggal")) $("trx-tanggal").value = getTanggalAwalPeriode(getPeriodeAktif());
+};
+
+// Laporan dan tutup buku default ikut periode aktif.
+var _generateLaporanPeriodLock = generateLaporan;
+generateLaporan = function(){
+  if($("lap-bulan") && !$("lap-bulan").value) $("lap-bulan").value = getPeriodeAktif();
+  _generateLaporanPeriodLock();
+};
+
+var _renderTutupBukuPeriodLock = renderTutupBuku;
+renderTutupBuku = function(){
+  if($("tutup-bulan") && !$("tutup-bulan").value) $("tutup-bulan").value = getPeriodeAktif();
+  _renderTutupBukuPeriodLock();
+};
+
+// Render semua komponen tambahan periode.
+var _renderAllPeriodLock = renderAll;
+renderAll = function(){
+  isiDropdownPeriodeAktif();
+
+  if($("filter-bulan") && !$("filter-bulan").value) $("filter-bulan").value = getPeriodeAktif();
+  if($("lap-bulan") && !$("lap-bulan").value) $("lap-bulan").value = getPeriodeAktif();
+  if($("tutup-bulan") && !$("tutup-bulan").value) $("tutup-bulan").value = getPeriodeAktif();
+
+  _renderAllPeriodLock();
+
+  isiDropdownPeriodeAktif();
+  updateInfoPeriodeAktif();
+  setTimeout(renderDashboardAnalitik, 50);
+};
+
+// Inisialisasi awal setelah semua fungsi terbaca.
+setTimeout(function(){
+  isiDropdownPeriodeAktif();
+  setPeriodeAktif(getPeriodeAktif());
+  if($("trx-tanggal")) $("trx-tanggal").value = getTanggalAwalPeriode(getPeriodeAktif());
+}, 150);
+
+</script>
+</body>
+</html>
