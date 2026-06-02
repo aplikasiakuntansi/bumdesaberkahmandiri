@@ -17,7 +17,7 @@ Produk digital berlisensi.
 
 <script>
 const DEFAULT_CONFIG = {
-  GAS_URL: "https://script.google.com/macros/s/AKfycbwagwTPRHVSNYstI6vabZZ2YovqFoXzJwBtqsuBEl2xK7awTqSbCBKfPaPC2pV6oBDW7A/exec",
+  GAS_URL: "https://script.google.com/macros/s/AKfycbzdnklYJLDgcaoyVUbG74VUTl4CbEXkIwjgYO_mPBMP5p9Gtze_rqPvOUKluSNTIBgUOg/exec",
   LOGO_URL: "https://aplikasiakuntansi.github.io/bumdesaberkahmandiri/logo-bumdes.jpeg",
   COPYRIGHT: "© 2026 Dhian Widhi A"
 };
@@ -449,9 +449,6 @@ button,.btn{border:0;border-radius:10px;padding:11px 15px;cursor:pointer;font-we
             <div class="form-group"><label>Alamat</label><input id="cfg-alamat"></div>
             <div class="form-group"><label>Telepon</label><input id="cfg-telp"></div>
             <div class="form-group"><label>Email</label><input id="cfg-email"></div>
-            <div class="form-group"><label>Saldo Awal Kas</label><input type="number" id="cfg-saldo-awal"></div>
-            <div class="form-group"><label>Utang</label><input type="number" id="cfg-utang"></div>
-            <div class="form-group"><label>Modal Awal / Penyertaan Modal</label><input type="number" id="cfg-modal"></div>
           </div>
           <div class="grid-4">
             <div class="form-group"><label>Jabatan 1</label><input id="cfg-role1"></div><div class="form-group"><label>Nama 1</label><input id="cfg-nama1"></div>
@@ -465,7 +462,7 @@ button,.btn{border:0;border-radius:10px;padding:11px 15px;cursor:pointer;font-we
         <div class="card">
           <div class="card-title">Saldo Awal Neraca Per 1 Januari 2026</div>
           <p class="help" style="margin-bottom:12px">
-            Gunakan ini untuk merangkum posisi BUMDes dari 2023–2025. Jadi tidak perlu input ulang semua transaksi lama.
+            Gunakan ini untuk merangkum posisi BUMDes sampai 31 Desember 2025. Mulai 1 Januari 2026 saldo laporan hanya membaca bagian ini agar tidak dobel hitung.
           </p>
           <div class="grid-3">
             <div class="form-group"><label>Kas Awal</label><input type="number" id="cfg-kas-awal"></div>
@@ -2324,6 +2321,842 @@ function lapAset(b){
 }
 
 setTimeout(previewPenyusutanAset, 500);
+
+
+// ======================================================
+// FIX FINAL SALDO AWAL NERACA - TANPA DOBEL SALDO AWAL KAS
+// ======================================================
+function _num(id){
+  var el = $(id);
+  return Number(el ? (el.value || 0) : 0);
+}
+
+function getSaldoAwalNeraca(){
+  return {
+    kasAwal: Number(state.profil.kasAwal || 0),
+    bankAwal: Number(state.profil.bankAwal || 0),
+    piutangAwal: Number(state.profil.piutangAwal || 0),
+    persediaanAwal: Number(state.profil.persediaanAwal || 0),
+    asetAwal: Number(state.profil.asetAwal || 0),
+    akumSusutAwal: Number(state.profil.akumSusutAwal || 0),
+    utangAwal: Number(state.profil.utangAwal || 0),
+    modalDesa: Number(state.profil.modalDesa || 0),
+    labaDitahan: Number(state.profil.labaDitahan || 0)
+  };
+}
+
+function autoBalanceSaldoAwalJikaKosong(){
+  var a = getSaldoAwalNeraca();
+  var asetBersih = Math.max(0, a.asetAwal - a.akumSusutAwal);
+  var totalAsetAwal = a.kasAwal + a.bankAwal + a.piutangAwal + a.persediaanAwal + asetBersih;
+  var totalPasivaAwal = a.utangAwal + a.modalDesa + a.labaDitahan;
+
+  // Kalau modal & laba ditahan belum diisi, bantu isi laba ditahan agar saldo awal balance.
+  if(totalAsetAwal > 0 && totalPasivaAwal === 0){
+    state.profil.labaDitahan = totalAsetAwal;
+    if($("cfg-laba-ditahan")) $("cfg-laba-ditahan").value = totalAsetAwal;
+  }
+}
+
+function loadProfilForm(){
+  ["nama","alamat","telp","email"].forEach(function(k){
+    if($("cfg-"+k)) $("cfg-"+k).value = state.profil[k] || "";
+  });
+
+  for(var i=1;i<=4;i++){
+    if($("cfg-role"+i)) $("cfg-role"+i).value = state.profil["role"+i] || "";
+    if($("cfg-nama"+i)) $("cfg-nama"+i).value = state.profil["nama"+i] || "";
+  }
+
+  var p = state.profil || {};
+  var map = {
+    "cfg-kas-awal": p.kasAwal || 0,
+    "cfg-bank-awal": p.bankAwal || 0,
+    "cfg-piutang-awal": p.piutangAwal || 0,
+    "cfg-persediaan-awal": p.persediaanAwal || 0,
+    "cfg-aset-awal": p.asetAwal || 0,
+    "cfg-akum-susut-awal": p.akumSusutAwal || 0,
+    "cfg-utang-awal": p.utangAwal || 0,
+    "cfg-modal-desa": p.modalDesa || 0,
+    "cfg-laba-ditahan": p.labaDitahan || 0
+  };
+  Object.keys(map).forEach(function(id){
+    if($(id)) $(id).value = map[id];
+  });
+}
+
+function simpanProfil(){
+  state.profil = {
+    ...state.profil,
+    nama: $("cfg-nama") ? $("cfg-nama").value : state.profil.nama,
+    alamat: $("cfg-alamat") ? $("cfg-alamat").value : state.profil.alamat,
+    telp: $("cfg-telp") ? $("cfg-telp").value : state.profil.telp,
+    email: $("cfg-email") ? $("cfg-email").value : state.profil.email,
+    logo: DEFAULT_CONFIG.LOGO_URL,
+
+    // Kompatibilitas dengan GAS lama. Nilai ini disamakan, tapi tidak dihitung ganda.
+    saldoAwal: _num("cfg-kas-awal"),
+    utang: _num("cfg-utang-awal"),
+    modal: _num("cfg-modal-desa"),
+
+    kasAwal: _num("cfg-kas-awal"),
+    bankAwal: _num("cfg-bank-awal"),
+    piutangAwal: _num("cfg-piutang-awal"),
+    persediaanAwal: _num("cfg-persediaan-awal"),
+    asetAwal: _num("cfg-aset-awal"),
+    akumSusutAwal: _num("cfg-akum-susut-awal"),
+    utangAwal: _num("cfg-utang-awal"),
+    modalDesa: _num("cfg-modal-desa"),
+    labaDitahan: _num("cfg-laba-ditahan"),
+
+    role1: $("cfg-role1") ? $("cfg-role1").value : "",
+    nama1: $("cfg-nama1") ? $("cfg-nama1").value : "",
+    role2: $("cfg-role2") ? $("cfg-role2").value : "",
+    nama2: $("cfg-nama2") ? $("cfg-nama2").value : "",
+    role3: $("cfg-role3") ? $("cfg-role3").value : "",
+    nama3: $("cfg-nama3") ? $("cfg-nama3").value : "",
+    role4: $("cfg-role4") ? $("cfg-role4").value : "",
+    nama4: $("cfg-nama4") ? $("cfg-nama4").value : ""
+  };
+
+  autoBalanceSaldoAwalJikaKosong();
+  saveLocal();
+  syncToGasBackend("updateProfil", state.profil);
+  applyBranding();
+  renderAll();
+  alert("Profil dan Saldo Awal Neraca tersimpan. Saldo Awal Kas lama tidak dihitung ganda.");
+}
+
+function saldoKasSampai(bulan){
+  var awal = getSaldoAwalNeraca();
+  var kasBankAwal = awal.kasAwal + awal.bankAwal;
+  if(!bulan) bulan = $("filter-bulan") ? $("filter-bulan").value : monthStr();
+
+  var masuk = (state.transaksi || [])
+    .filter(function(t){ return String(t.tanggal || "").slice(0,7) <= bulan && t.jenis === "MASUK"; })
+    .reduce(function(s,t){ return s + Number(t.nominal || 0); }, 0);
+
+  var keluar = (state.transaksi || [])
+    .filter(function(t){ return String(t.tanggal || "").slice(0,7) <= bulan && t.jenis === "KELUAR"; })
+    .reduce(function(s,t){ return s + Number(t.nominal || 0); }, 0);
+
+  return kasBankAwal + masuk - keluar;
+}
+
+function getSaldoAwalBulan(bulan){
+  var prev = getBulanSebelumnya(bulan);
+  if(state.tutupBuku && state.tutupBuku[prev] && state.tutupBuku[prev].isClosed){
+    return Number(state.tutupBuku[prev].saldoAkhir || 0);
+  }
+
+  var awal = getSaldoAwalNeraca();
+  var kasBankAwal = awal.kasAwal + awal.bankAwal;
+
+  var masukSebelum = (state.transaksi || [])
+    .filter(function(t){ return String(t.tanggal || "").slice(0,7) < bulan && t.jenis === "MASUK"; })
+    .reduce(function(s,t){ return s + Number(t.nominal || 0); }, 0);
+
+  var keluarSebelum = (state.transaksi || [])
+    .filter(function(t){ return String(t.tanggal || "").slice(0,7) < bulan && t.jenis === "KELUAR"; })
+    .reduce(function(s,t){ return s + Number(t.nominal || 0); }, 0);
+
+  return kasBankAwal + masukSebelum - keluarSebelum;
+}
+
+function lapNeraca(b){
+  setReportHeader("LAPORAN POSISI KEUANGAN / NERACA", b);
+  var r = getRingkasanBulan(b);
+  var awal = getSaldoAwalNeraca();
+
+  var kas = r.saldoAkhir;
+  var piutang = awal.piutangAwal;
+  var persediaan = awal.persediaanAwal;
+  var asetTetap = r.nilaiAset;
+  var totalAset = kas + piutang + persediaan + asetTetap;
+
+  var utang = awal.utangAwal;
+  var modal = awal.modalDesa;
+  var labaDitahan = awal.labaDitahan;
+  var labaBerjalan = r.labaRugi;
+  var totalEkuitas = modal + labaDitahan + labaBerjalan;
+  var totalPasiva = utang + totalEkuitas;
+  var selisih = totalAset - totalPasiva;
+  var ok = Math.abs(selisih) < 1;
+
+  $("rep-content").innerHTML = `
+  <table class="report-table">
+    <thead><tr><th>ASET</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">ASET LANCAR</td></tr>
+      <tr><td style="padding-left:2rem">Kas dan Setara Kas</td><td class="text-right">${formatRupiah(kas)}</td></tr>
+      <tr><td style="padding-left:2rem">Piutang Usaha</td><td class="text-right">${formatRupiah(piutang)}</td></tr>
+      <tr><td style="padding-left:2rem">Persediaan</td><td class="text-right">${formatRupiah(persediaan)}</td></tr>
+      <tr class="row-cat"><td colspan="2">ASET TETAP</td></tr>
+      <tr><td style="padding-left:2rem">Aset Tetap Bersih</td><td class="text-right">${formatRupiah(asetTetap)}</td></tr>
+      <tr class="row-total"><td>TOTAL ASET</td><td class="text-right">${formatRupiah(totalAset)}</td></tr>
+    </tbody>
+  </table>
+  <br>
+  <table class="report-table">
+    <thead><tr><th>LIABILITAS DAN EKUITAS</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">LIABILITAS</td></tr>
+      <tr><td style="padding-left:2rem">Utang Awal / Utang Usaha</td><td class="text-right">${formatRupiah(utang)}</td></tr>
+      <tr class="row-cat"><td colspan="2">EKUITAS</td></tr>
+      <tr><td style="padding-left:2rem">Modal Desa / Penyertaan Modal</td><td class="text-right">${formatRupiah(modal)}</td></tr>
+      <tr><td style="padding-left:2rem">Saldo Laba Ditahan</td><td class="text-right">${formatRupiah(labaDitahan)}</td></tr>
+      <tr><td style="padding-left:2rem">Laba/Rugi Periode Berjalan</td><td class="text-right">${formatRupiah(labaBerjalan)}</td></tr>
+      <tr class="row-total"><td>TOTAL LIABILITAS DAN EKUITAS</td><td class="text-right">${formatRupiah(totalPasiva)}</td></tr>
+      <tr><td>Selisih</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${formatRupiah(selisih)}</td></tr>
+      <tr class="row-total"><td>Status</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${ok ? "BALANCE" : "PERLU CEK SALDO AWAL NERACA"}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+setTimeout(function(){
+  autoBalanceSaldoAwalJikaKosong();
+  loadProfilForm();
+  renderAll();
+}, 500);
+
+
+// ======================================================
+// FIX PAMUNGKAS KAS AWAL: saldoAwal LAMA DIABAIKAN TOTAL
+// ======================================================
+function migrasiSaldoAwalLamaSekali(){
+  if(!state.profil) state.profil = {};
+
+  const kasAwal = Number(state.profil.kasAwal || 0);
+  const saldoAwalLama = Number(state.profil.saldoAwal || 0);
+
+  if(kasAwal === 0 && saldoAwalLama > 0){
+    state.profil.kasAwal = saldoAwalLama;
+  }
+
+  state.profil.saldoAwal = 0;
+  saveLocal();
+}
+
+function getSaldoAwalNeraca(){
+  migrasiSaldoAwalLamaSekali();
+  return {
+    kasAwal: Number(state.profil.kasAwal || 0),
+    bankAwal: Number(state.profil.bankAwal || 0),
+    piutangAwal: Number(state.profil.piutangAwal || 0),
+    persediaanAwal: Number(state.profil.persediaanAwal || 0),
+    asetAwal: Number(state.profil.asetAwal || 0),
+    akumSusutAwal: Number(state.profil.akumSusutAwal || 0),
+    utangAwal: Number(state.profil.utangAwal || 0),
+    modalDesa: Number(state.profil.modalDesa || 0),
+    labaDitahan: Number(state.profil.labaDitahan || 0)
+  };
+}
+
+function loadProfilForm(){
+  migrasiSaldoAwalLamaSekali();
+
+  ["nama","alamat","telp","email"].forEach(function(k){
+    if($("cfg-"+k)) $("cfg-"+k).value = state.profil[k] || "";
+  });
+
+  for(let i=1;i<=4;i++){
+    if($("cfg-role"+i)) $("cfg-role"+i).value = state.profil["role"+i] || "";
+    if($("cfg-nama"+i)) $("cfg-nama"+i).value = state.profil["nama"+i] || "";
+  }
+
+  const p = state.profil || {};
+  const map = {
+    "cfg-kas-awal": p.kasAwal || 0,
+    "cfg-bank-awal": p.bankAwal || 0,
+    "cfg-piutang-awal": p.piutangAwal || 0,
+    "cfg-persediaan-awal": p.persediaanAwal || 0,
+    "cfg-aset-awal": p.asetAwal || 0,
+    "cfg-akum-susut-awal": p.akumSusutAwal || 0,
+    "cfg-utang-awal": p.utangAwal || 0,
+    "cfg-modal-desa": p.modalDesa || 0,
+    "cfg-laba-ditahan": p.labaDitahan || 0
+  };
+
+  Object.keys(map).forEach(function(id){
+    if($(id)) $(id).value = map[id];
+  });
+}
+
+function simpanProfil(){
+  state.profil = {
+    ...state.profil,
+
+    nama: $("cfg-nama") ? $("cfg-nama").value : state.profil.nama,
+    alamat: $("cfg-alamat") ? $("cfg-alamat").value : state.profil.alamat,
+    telp: $("cfg-telp") ? $("cfg-telp").value : state.profil.telp,
+    email: $("cfg-email") ? $("cfg-email").value : state.profil.email,
+    logo: DEFAULT_CONFIG.LOGO_URL,
+
+    saldoAwal: 0,
+    utang: 0,
+    modal: 0,
+
+    kasAwal: Number($("cfg-kas-awal") ? $("cfg-kas-awal").value || 0 : 0),
+    bankAwal: Number($("cfg-bank-awal") ? $("cfg-bank-awal").value || 0 : 0),
+    piutangAwal: Number($("cfg-piutang-awal") ? $("cfg-piutang-awal").value || 0 : 0),
+    persediaanAwal: Number($("cfg-persediaan-awal") ? $("cfg-persediaan-awal").value || 0 : 0),
+    asetAwal: Number($("cfg-aset-awal") ? $("cfg-aset-awal").value || 0 : 0),
+    akumSusutAwal: Number($("cfg-akum-susut-awal") ? $("cfg-akum-susut-awal").value || 0 : 0),
+    utangAwal: Number($("cfg-utang-awal") ? $("cfg-utang-awal").value || 0 : 0),
+    modalDesa: Number($("cfg-modal-desa") ? $("cfg-modal-desa").value || 0 : 0),
+    labaDitahan: Number($("cfg-laba-ditahan") ? $("cfg-laba-ditahan").value || 0 : 0),
+
+    role1: $("cfg-role1") ? $("cfg-role1").value : "",
+    nama1: $("cfg-nama1") ? $("cfg-nama1").value : "",
+    role2: $("cfg-role2") ? $("cfg-role2").value : "",
+    nama2: $("cfg-nama2") ? $("cfg-nama2").value : "",
+    role3: $("cfg-role3") ? $("cfg-role3").value : "",
+    nama3: $("cfg-nama3") ? $("cfg-nama3").value : "",
+    role4: $("cfg-role4") ? $("cfg-role4").value : "",
+    nama4: $("cfg-nama4") ? $("cfg-nama4").value : ""
+  };
+
+  saveLocal();
+  syncToGasBackend("updateProfil", state.profil);
+  applyBranding();
+  renderAll();
+
+  alert("Profil tersimpan. Kas awal hanya sebagai kasAwal; saldoAwal lama dikosongkan agar tidak dobel.");
+}
+
+function getSaldoAwalBulan(bulan){
+  const prev = getBulanSebelumnya(bulan);
+
+  if(state.tutupBuku && state.tutupBuku[prev] && state.tutupBuku[prev].isClosed){
+    return Number(state.tutupBuku[prev].saldoAkhir || 0);
+  }
+
+  const awal = getSaldoAwalNeraca();
+  const kasBankAwal = awal.kasAwal + awal.bankAwal;
+
+  const masukSebelum = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) < bulan && t.jenis === "MASUK")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  const keluarSebelum = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) < bulan && t.jenis === "KELUAR")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  return kasBankAwal + masukSebelum - keluarSebelum;
+}
+
+function saldoKasSampai(bulan = null){
+  if(!bulan){
+    bulan = $("filter-bulan") ? $("filter-bulan").value : monthStr();
+  }
+
+  const awal = getSaldoAwalNeraca();
+  const kasBankAwal = awal.kasAwal + awal.bankAwal;
+
+  const masuk = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) <= bulan && t.jenis === "MASUK")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  const keluar = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) <= bulan && t.jenis === "KELUAR")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  return kasBankAwal + masuk - keluar;
+}
+
+function getRingkasanBulan(bulan){
+  const saldoAwal = getSaldoAwalBulan(bulan);
+  const pemasukan = totalMasuk(bulan);
+  const pengeluaran = totalKeluar(bulan);
+  const saldoAkhir = saldoAwal + pemasukan - pengeluaran;
+  const nilaiAset = nilaiBukuAset(bulan);
+  const bebanSusut = bebanSusutBulan(bulan);
+  const labaRugi = pemasukan - pengeluaran - bebanSusut;
+  return { saldoAwal, pemasukan, pengeluaran, saldoAkhir, nilaiAset, bebanSusut, labaRugi };
+}
+
+function lapArusKas(b){
+  setReportHeader("LAPORAN ARUS KAS", b);
+  const r = getRingkasanBulan(b);
+  $("rep-content").innerHTML = `
+  <table class="report-table">
+    <thead><tr><th>Uraian</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr><td>Saldo Kas Awal Periode</td><td class="text-right">${formatRupiah(r.saldoAwal)}</td></tr>
+      <tr class="row-cat"><td colspan="2">Arus Kas Operasional</td></tr>
+      <tr><td style="padding-left:2rem">Penerimaan Kas dari Kegiatan Usaha</td><td class="text-right">${formatRupiah(r.pemasukan)}</td></tr>
+      <tr><td style="padding-left:2rem">Pengeluaran Kas untuk Operasional</td><td class="text-right">${formatRupiah(r.pengeluaran)}</td></tr>
+      <tr class="row-total"><td>Kenaikan / Penurunan Kas Bersih</td><td class="text-right">${formatRupiah(r.pemasukan-r.pengeluaran)}</td></tr>
+      <tr class="row-total"><td>Saldo Kas Akhir Periode</td><td class="text-right">${formatRupiah(r.saldoAkhir)}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+function lapNeraca(b){
+  setReportHeader("LAPORAN POSISI KEUANGAN / NERACA", b);
+  const r = getRingkasanBulan(b);
+  const awal = getSaldoAwalNeraca();
+
+  const kas = r.saldoAkhir;
+  const piutang = awal.piutangAwal;
+  const persediaan = awal.persediaanAwal;
+  const asetTetap = r.nilaiAset;
+  const totalAset = kas + piutang + persediaan + asetTetap;
+
+  const utang = awal.utangAwal;
+  const modal = awal.modalDesa;
+  const labaDitahan = awal.labaDitahan;
+  const labaBerjalan = r.labaRugi;
+  const totalEkuitas = modal + labaDitahan + labaBerjalan;
+  const totalPasiva = utang + totalEkuitas;
+  const selisih = totalAset - totalPasiva;
+  const ok = Math.abs(selisih) < 1;
+
+  $("rep-content").innerHTML = `
+  <table class="report-table">
+    <thead><tr><th>ASET</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">ASET LANCAR</td></tr>
+      <tr><td style="padding-left:2rem">Kas dan Setara Kas</td><td class="text-right">${formatRupiah(kas)}</td></tr>
+      <tr><td style="padding-left:2rem">Piutang Usaha</td><td class="text-right">${formatRupiah(piutang)}</td></tr>
+      <tr><td style="padding-left:2rem">Persediaan</td><td class="text-right">${formatRupiah(persediaan)}</td></tr>
+      <tr class="row-cat"><td colspan="2">ASET TETAP</td></tr>
+      <tr><td style="padding-left:2rem">Aset Tetap Bersih</td><td class="text-right">${formatRupiah(asetTetap)}</td></tr>
+      <tr class="row-total"><td>TOTAL ASET</td><td class="text-right">${formatRupiah(totalAset)}</td></tr>
+    </tbody>
+  </table>
+  <br>
+  <table class="report-table">
+    <thead><tr><th>LIABILITAS DAN EKUITAS</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">LIABILITAS</td></tr>
+      <tr><td style="padding-left:2rem">Utang Awal / Utang Usaha</td><td class="text-right">${formatRupiah(utang)}</td></tr>
+      <tr class="row-cat"><td colspan="2">EKUITAS</td></tr>
+      <tr><td style="padding-left:2rem">Modal Desa / Penyertaan Modal</td><td class="text-right">${formatRupiah(modal)}</td></tr>
+      <tr><td style="padding-left:2rem">Saldo Laba Ditahan</td><td class="text-right">${formatRupiah(labaDitahan)}</td></tr>
+      <tr><td style="padding-left:2rem">Laba/Rugi Periode Berjalan</td><td class="text-right">${formatRupiah(labaBerjalan)}</td></tr>
+      <tr class="row-total"><td>TOTAL LIABILITAS DAN EKUITAS</td><td class="text-right">${formatRupiah(totalPasiva)}</td></tr>
+      <tr><td>Selisih</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${formatRupiah(selisih)}</td></tr>
+      <tr class="row-total"><td>Status</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${ok ? "BALANCE" : "PERLU CEK SALDO AWAL NERACA"}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+setTimeout(function(){
+  migrasiSaldoAwalLamaSekali();
+  loadProfilForm();
+  renderAll();
+}, 700);
+
+
+// ======================================================
+// FIX FINAL BALANCE OTOMATIS SALDO AWAL NERACA
+// ======================================================
+// Tujuan:
+// Jika user isi Kas Awal/Bank/Piutang/Persediaan/Aset Awal,
+// tetapi Modal Desa + Laba Ditahan masih 0,
+// aplikasi otomatis mengisi Laba Ditahan supaya neraca tidak selisih.
+
+function hitungTotalAsetAwalNeraca(){
+  const kas = Number(state.profil.kasAwal || 0);
+  const bank = Number(state.profil.bankAwal || 0);
+  const piutang = Number(state.profil.piutangAwal || 0);
+  const persediaan = Number(state.profil.persediaanAwal || 0);
+  const aset = Number(state.profil.asetAwal || 0);
+  const akum = Number(state.profil.akumSusutAwal || 0);
+  return kas + bank + piutang + persediaan + Math.max(0, aset - akum);
+}
+
+function balanceSaldoAwalOtomatis(){
+  if(!state.profil) state.profil = {};
+
+  const totalAsetAwal = hitungTotalAsetAwalNeraca();
+  const utang = Number(state.profil.utangAwal || 0);
+  const modal = Number(state.profil.modalDesa || 0);
+  const labaDitahan = Number(state.profil.labaDitahan || 0);
+  const totalPasivaTanpaLaba = utang + modal;
+
+  // Jika laba ditahan kosong, isi otomatis selisih agar balance.
+  if(totalAsetAwal > 0 && labaDitahan === 0){
+    const labaOtomatis = totalAsetAwal - totalPasivaTanpaLaba;
+    state.profil.labaDitahan = labaOtomatis;
+    if($("cfg-laba-ditahan")) $("cfg-laba-ditahan").value = labaOtomatis;
+  }
+}
+
+function previewBalanceSaldoAwal(){
+  const kas = Number($("cfg-kas-awal") ? $("cfg-kas-awal").value || 0 : 0);
+  const bank = Number($("cfg-bank-awal") ? $("cfg-bank-awal").value || 0 : 0);
+  const piutang = Number($("cfg-piutang-awal") ? $("cfg-piutang-awal").value || 0 : 0);
+  const persediaan = Number($("cfg-persediaan-awal") ? $("cfg-persediaan-awal").value || 0 : 0);
+  const aset = Number($("cfg-aset-awal") ? $("cfg-aset-awal").value || 0 : 0);
+  const akum = Number($("cfg-akum-susut-awal") ? $("cfg-akum-susut-awal").value || 0 : 0);
+  const utang = Number($("cfg-utang-awal") ? $("cfg-utang-awal").value || 0 : 0);
+  const modal = Number($("cfg-modal-desa") ? $("cfg-modal-desa").value || 0 : 0);
+  const laba = Number($("cfg-laba-ditahan") ? $("cfg-laba-ditahan").value || 0 : 0);
+
+  const totalAset = kas + bank + piutang + persediaan + Math.max(0, aset - akum);
+  const totalPasiva = utang + modal + laba;
+
+  // Kalau laba ditahan masih 0, isi otomatis.
+  if(totalAset > 0 && laba === 0){
+    const labaAuto = totalAset - utang - modal;
+    if($("cfg-laba-ditahan")) $("cfg-laba-ditahan").value = labaAuto;
+  }
+}
+
+function simpanProfil(){
+  state.profil = {
+    ...state.profil,
+
+    nama: $("cfg-nama") ? $("cfg-nama").value : state.profil.nama,
+    alamat: $("cfg-alamat") ? $("cfg-alamat").value : state.profil.alamat,
+    telp: $("cfg-telp") ? $("cfg-telp").value : state.profil.telp,
+    email: $("cfg-email") ? $("cfg-email").value : state.profil.email,
+    logo: DEFAULT_CONFIG.LOGO_URL,
+
+    // parameter lama dikosongkan supaya tidak dobel
+    saldoAwal: 0,
+    utang: 0,
+    modal: 0,
+
+    kasAwal: Number($("cfg-kas-awal") ? $("cfg-kas-awal").value || 0 : 0),
+    bankAwal: Number($("cfg-bank-awal") ? $("cfg-bank-awal").value || 0 : 0),
+    piutangAwal: Number($("cfg-piutang-awal") ? $("cfg-piutang-awal").value || 0 : 0),
+    persediaanAwal: Number($("cfg-persediaan-awal") ? $("cfg-persediaan-awal").value || 0 : 0),
+    asetAwal: Number($("cfg-aset-awal") ? $("cfg-aset-awal").value || 0 : 0),
+    akumSusutAwal: Number($("cfg-akum-susut-awal") ? $("cfg-akum-susut-awal").value || 0 : 0),
+    utangAwal: Number($("cfg-utang-awal") ? $("cfg-utang-awal").value || 0 : 0),
+    modalDesa: Number($("cfg-modal-desa") ? $("cfg-modal-desa").value || 0 : 0),
+    labaDitahan: Number($("cfg-laba-ditahan") ? $("cfg-laba-ditahan").value || 0 : 0),
+
+    role1: $("cfg-role1") ? $("cfg-role1").value : "",
+    nama1: $("cfg-nama1") ? $("cfg-nama1").value : "",
+    role2: $("cfg-role2") ? $("cfg-role2").value : "",
+    nama2: $("cfg-nama2") ? $("cfg-nama2").value : "",
+    role3: $("cfg-role3") ? $("cfg-role3").value : "",
+    nama3: $("cfg-nama3") ? $("cfg-nama3").value : "",
+    role4: $("cfg-role4") ? $("cfg-role4").value : "",
+    nama4: $("cfg-nama4") ? $("cfg-nama4").value : ""
+  };
+
+  balanceSaldoAwalOtomatis();
+
+  saveLocal();
+  syncToGasBackend("updateProfil", state.profil);
+  applyBranding();
+  loadProfilForm();
+  renderAll();
+
+  alert("Profil tersimpan. Jika modal/laba ditahan kosong, laba ditahan otomatis diisi agar neraca balance.");
+}
+
+setTimeout(function(){
+  ["cfg-kas-awal","cfg-bank-awal","cfg-piutang-awal","cfg-persediaan-awal","cfg-aset-awal","cfg-akum-susut-awal","cfg-utang-awal","cfg-modal-desa","cfg-laba-ditahan"].forEach(function(id){
+    const el = $(id);
+    if(el) el.addEventListener("input", previewBalanceSaldoAwal);
+  });
+  balanceSaldoAwalOtomatis();
+  loadProfilForm();
+  renderAll();
+}, 800);
+
+
+// ======================================================
+// FIX FINAL NERACA BALANCE OTOMATIS
+// ======================================================
+// Laba Ditahan Awal dihitung otomatis dari saldo awal neraca:
+// Aset Awal Bersih - Utang Awal - Modal Desa.
+// User tidak wajib mengisi Laba Ditahan manual.
+
+function getSaldoAwalNeraca(){
+  if(!state.profil) state.profil = {};
+
+  // saldoAwal lama tidak dipakai lagi
+  state.profil.saldoAwal = 0;
+
+  return {
+    kasAwal: Number(state.profil.kasAwal || 0),
+    bankAwal: Number(state.profil.bankAwal || 0),
+    piutangAwal: Number(state.profil.piutangAwal || 0),
+    persediaanAwal: Number(state.profil.persediaanAwal || 0),
+    asetAwal: Number(state.profil.asetAwal || 0),
+    akumSusutAwal: Number(state.profil.akumSusutAwal || 0),
+    utangAwal: Number(state.profil.utangAwal || 0),
+    modalDesa: Number(state.profil.modalDesa || 0),
+    labaDitahan: Number(state.profil.labaDitahan || 0)
+  };
+}
+
+function hitungLabaDitahanAwalOtomatis(){
+  const a = getSaldoAwalNeraca();
+
+  const asetAwalBersih =
+    a.kasAwal +
+    a.bankAwal +
+    a.piutangAwal +
+    a.persediaanAwal +
+    Math.max(0, a.asetAwal - a.akumSusutAwal);
+
+  const labaDitahanAuto =
+    asetAwalBersih -
+    a.utangAwal -
+    a.modalDesa;
+
+  return labaDitahanAuto;
+}
+
+function getLabaDitahanNeraca(){
+  const manual = Number(state.profil.labaDitahan || 0);
+  const auto = hitungLabaDitahanAwalOtomatis();
+
+  // Jika user isi laba ditahan manual, pakai manual.
+  // Jika kosong, pakai otomatis agar neraca balance.
+  if(manual !== 0) return manual;
+
+  return auto;
+}
+
+function sinkronkanLabaDitahanPreview(){
+  const auto = hitungLabaDitahanAwalOtomatis();
+
+  if($("cfg-laba-ditahan")){
+    const current = Number($("cfg-laba-ditahan").value || 0);
+    if(current === 0 && auto !== 0){
+      $("cfg-laba-ditahan").value = auto;
+    }
+  }
+}
+
+function loadProfilForm(){
+  ["nama","alamat","telp","email"].forEach(function(k){
+    if($("cfg-"+k)) $("cfg-"+k).value = state.profil[k] || "";
+  });
+
+  for(let i=1;i<=4;i++){
+    if($("cfg-role"+i)) $("cfg-role"+i).value = state.profil["role"+i] || "";
+    if($("cfg-nama"+i)) $("cfg-nama"+i).value = state.profil["nama"+i] || "";
+  }
+
+  const p = state.profil || {};
+  const map = {
+    "cfg-kas-awal": p.kasAwal || 0,
+    "cfg-bank-awal": p.bankAwal || 0,
+    "cfg-piutang-awal": p.piutangAwal || 0,
+    "cfg-persediaan-awal": p.persediaanAwal || 0,
+    "cfg-aset-awal": p.asetAwal || 0,
+    "cfg-akum-susut-awal": p.akumSusutAwal || 0,
+    "cfg-utang-awal": p.utangAwal || 0,
+    "cfg-modal-desa": p.modalDesa || 0,
+    "cfg-laba-ditahan": p.labaDitahan || 0
+  };
+
+  Object.keys(map).forEach(function(id){
+    if($(id)) $(id).value = map[id];
+  });
+
+  sinkronkanLabaDitahanPreview();
+}
+
+function simpanProfil(){
+  const kasAwal = Number($("cfg-kas-awal") ? $("cfg-kas-awal").value || 0 : 0);
+  const bankAwal = Number($("cfg-bank-awal") ? $("cfg-bank-awal").value || 0 : 0);
+  const piutangAwal = Number($("cfg-piutang-awal") ? $("cfg-piutang-awal").value || 0 : 0);
+  const persediaanAwal = Number($("cfg-persediaan-awal") ? $("cfg-persediaan-awal").value || 0 : 0);
+  const asetAwal = Number($("cfg-aset-awal") ? $("cfg-aset-awal").value || 0 : 0);
+  const akumSusutAwal = Number($("cfg-akum-susut-awal") ? $("cfg-akum-susut-awal").value || 0 : 0);
+  const utangAwal = Number($("cfg-utang-awal") ? $("cfg-utang-awal").value || 0 : 0);
+  const modalDesa = Number($("cfg-modal-desa") ? $("cfg-modal-desa").value || 0 : 0);
+
+  let labaDitahan = Number($("cfg-laba-ditahan") ? $("cfg-laba-ditahan").value || 0 : 0);
+
+  if(labaDitahan === 0){
+    const asetBersihAwal =
+      kasAwal +
+      bankAwal +
+      piutangAwal +
+      persediaanAwal +
+      Math.max(0, asetAwal - akumSusutAwal);
+
+    labaDitahan = asetBersihAwal - utangAwal - modalDesa;
+  }
+
+  state.profil = {
+    ...state.profil,
+
+    nama: $("cfg-nama") ? $("cfg-nama").value : state.profil.nama,
+    alamat: $("cfg-alamat") ? $("cfg-alamat").value : state.profil.alamat,
+    telp: $("cfg-telp") ? $("cfg-telp").value : state.profil.telp,
+    email: $("cfg-email") ? $("cfg-email").value : state.profil.email,
+    logo: DEFAULT_CONFIG.LOGO_URL,
+
+    // parameter lama selalu dikosongkan
+    saldoAwal: 0,
+    utang: 0,
+    modal: 0,
+
+    kasAwal,
+    bankAwal,
+    piutangAwal,
+    persediaanAwal,
+    asetAwal,
+    akumSusutAwal,
+    utangAwal,
+    modalDesa,
+    labaDitahan,
+
+    role1: $("cfg-role1") ? $("cfg-role1").value : "",
+    nama1: $("cfg-nama1") ? $("cfg-nama1").value : "",
+    role2: $("cfg-role2") ? $("cfg-role2").value : "",
+    nama2: $("cfg-nama2") ? $("cfg-nama2").value : "",
+    role3: $("cfg-role3") ? $("cfg-role3").value : "",
+    nama3: $("cfg-nama3") ? $("cfg-nama3").value : "",
+    role4: $("cfg-role4") ? $("cfg-role4").value : "",
+    nama4: $("cfg-nama4") ? $("cfg-nama4").value : ""
+  };
+
+  if($("cfg-laba-ditahan")) $("cfg-laba-ditahan").value = labaDitahan;
+
+  saveLocal();
+  syncToGasBackend("updateProfil", state.profil);
+  applyBranding();
+  loadProfilForm();
+  renderAll();
+
+  alert("Profil tersimpan. Laba Ditahan Awal otomatis dihitung agar neraca balance.");
+}
+
+function getSaldoAwalBulan(bulan){
+  const prev = getBulanSebelumnya(bulan);
+
+  if(state.tutupBuku && state.tutupBuku[prev] && state.tutupBuku[prev].isClosed){
+    return Number(state.tutupBuku[prev].saldoAkhir || 0);
+  }
+
+  const awal = getSaldoAwalNeraca();
+  const kasBankAwal = awal.kasAwal + awal.bankAwal;
+
+  const masukSebelum = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) < bulan && t.jenis === "MASUK")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  const keluarSebelum = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) < bulan && t.jenis === "KELUAR")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  return kasBankAwal + masukSebelum - keluarSebelum;
+}
+
+function saldoKasSampai(bulan = null){
+  if(!bulan){
+    bulan = $("filter-bulan") ? $("filter-bulan").value : monthStr();
+  }
+
+  const awal = getSaldoAwalNeraca();
+  const kasBankAwal = awal.kasAwal + awal.bankAwal;
+
+  const masuk = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) <= bulan && t.jenis === "MASUK")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  const keluar = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) <= bulan && t.jenis === "KELUAR")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  return kasBankAwal + masuk - keluar;
+}
+
+function getRingkasanBulan(bulan){
+  const saldoAwal = getSaldoAwalBulan(bulan);
+  const pemasukan = totalMasuk(bulan);
+  const pengeluaran = totalKeluar(bulan);
+  const saldoAkhir = saldoAwal + pemasukan - pengeluaran;
+  const nilaiAset = nilaiBukuAset(bulan);
+  const bebanSusut = bebanSusutBulan(bulan);
+  const labaRugi = pemasukan - pengeluaran - bebanSusut;
+
+  return { saldoAwal, pemasukan, pengeluaran, saldoAkhir, nilaiAset, bebanSusut, labaRugi };
+}
+
+function lapArusKas(b){
+  setReportHeader("LAPORAN ARUS KAS", b);
+  const r = getRingkasanBulan(b);
+
+  $("rep-content").innerHTML = `
+  <table class="report-table">
+    <thead><tr><th>Uraian</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr><td>Saldo Kas Awal Periode</td><td class="text-right">${formatRupiah(r.saldoAwal)}</td></tr>
+      <tr class="row-cat"><td colspan="2">Arus Kas Operasional</td></tr>
+      <tr><td style="padding-left:2rem">Penerimaan Kas dari Kegiatan Usaha</td><td class="text-right">${formatRupiah(r.pemasukan)}</td></tr>
+      <tr><td style="padding-left:2rem">Pengeluaran Kas untuk Operasional</td><td class="text-right">${formatRupiah(r.pengeluaran)}</td></tr>
+      <tr class="row-total"><td>Kenaikan / Penurunan Kas Bersih</td><td class="text-right">${formatRupiah(r.pemasukan-r.pengeluaran)}</td></tr>
+      <tr class="row-total"><td>Saldo Kas Akhir Periode</td><td class="text-right">${formatRupiah(r.saldoAkhir)}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+function lapNeraca(b){
+  setReportHeader("LAPORAN POSISI KEUANGAN / NERACA", b);
+
+  const r = getRingkasanBulan(b);
+  const awal = getSaldoAwalNeraca();
+
+  const kas = r.saldoAkhir;
+  const piutang = awal.piutangAwal;
+  const persediaan = awal.persediaanAwal;
+  const asetTetap = r.nilaiAset;
+  const totalAset = kas + piutang + persediaan + asetTetap;
+
+  const utang = awal.utangAwal;
+  const modal = awal.modalDesa;
+  const labaDitahan = getLabaDitahanNeraca();
+  const labaBerjalan = r.labaRugi;
+
+  const totalEkuitas = modal + labaDitahan + labaBerjalan;
+  const totalPasiva = utang + totalEkuitas;
+  const selisih = totalAset - totalPasiva;
+  const ok = Math.abs(selisih) < 1;
+
+  $("rep-content").innerHTML = `
+  <table class="report-table">
+    <thead><tr><th>ASET</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">ASET LANCAR</td></tr>
+      <tr><td style="padding-left:2rem">Kas dan Setara Kas</td><td class="text-right">${formatRupiah(kas)}</td></tr>
+      <tr><td style="padding-left:2rem">Piutang Usaha</td><td class="text-right">${formatRupiah(piutang)}</td></tr>
+      <tr><td style="padding-left:2rem">Persediaan</td><td class="text-right">${formatRupiah(persediaan)}</td></tr>
+      <tr class="row-cat"><td colspan="2">ASET TETAP</td></tr>
+      <tr><td style="padding-left:2rem">Aset Tetap Bersih</td><td class="text-right">${formatRupiah(asetTetap)}</td></tr>
+      <tr class="row-total"><td>TOTAL ASET</td><td class="text-right">${formatRupiah(totalAset)}</td></tr>
+    </tbody>
+  </table>
+  <br>
+  <table class="report-table">
+    <thead><tr><th>LIABILITAS DAN EKUITAS</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">LIABILITAS</td></tr>
+      <tr><td style="padding-left:2rem">Utang Awal / Utang Usaha</td><td class="text-right">${formatRupiah(utang)}</td></tr>
+      <tr class="row-cat"><td colspan="2">EKUITAS</td></tr>
+      <tr><td style="padding-left:2rem">Modal Desa / Penyertaan Modal</td><td class="text-right">${formatRupiah(modal)}</td></tr>
+      <tr><td style="padding-left:2rem">Saldo Laba Ditahan Awal</td><td class="text-right">${formatRupiah(labaDitahan)}</td></tr>
+      <tr><td style="padding-left:2rem">Laba/Rugi Periode Berjalan</td><td class="text-right">${formatRupiah(labaBerjalan)}</td></tr>
+      <tr class="row-total"><td>TOTAL LIABILITAS DAN EKUITAS</td><td class="text-right">${formatRupiah(totalPasiva)}</td></tr>
+      <tr><td>Selisih</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${formatRupiah(selisih)}</td></tr>
+      <tr class="row-total"><td>Status</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${ok ? "BALANCE" : "PERLU CEK SALDO AWAL NERACA"}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+setTimeout(function(){
+  ["cfg-kas-awal","cfg-bank-awal","cfg-piutang-awal","cfg-persediaan-awal","cfg-aset-awal","cfg-akum-susut-awal","cfg-utang-awal","cfg-modal-desa"].forEach(function(id){
+    const el = $(id);
+    if(el) el.addEventListener("input", sinkronkanLabaDitahanPreview);
+  });
+  sinkronkanLabaDitahanPreview();
+  loadProfilForm();
+  renderAll();
+}, 800);
 
 </script>
 </body>
