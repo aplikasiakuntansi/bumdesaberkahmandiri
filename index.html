@@ -3158,6 +3158,1418 @@ setTimeout(function(){
   renderAll();
 }, 800);
 
+
+// ======================================================
+// FIX FINAL INVENTARIS: PEMBELIAN ASET MENGURANGI KAS
+// ======================================================
+// Prinsip akuntansi:
+// - Pembelian aset TIDAK masuk biaya laba rugi.
+// - Pembelian aset masuk arus kas investasi.
+// - Neraca: Kas berkurang, Aset Tetap bertambah.
+// - Laba Rugi hanya menanggung Beban Penyusutan.
+
+function totalPembelianAsetBulan(bulan){
+  return (state.aset || [])
+    .map(a => normalisasiAset(a))
+    .filter(a => String(a.tanggal_perolehan || a.tanggal_beli || "").slice(0,7) === bulan)
+    .reduce((s,a) => s + Number(a.harga_perolehan || a.harga || 0), 0);
+}
+
+function totalPembelianAsetSebelumBulan(bulan){
+  return (state.aset || [])
+    .map(a => normalisasiAset(a))
+    .filter(a => {
+      const p = String(a.tanggal_perolehan || a.tanggal_beli || "").slice(0,7);
+      return p && p < bulan;
+    })
+    .reduce((s,a) => s + Number(a.harga_perolehan || a.harga || 0), 0);
+}
+
+function totalPembelianAsetSampaiBulan(bulan){
+  return (state.aset || [])
+    .map(a => normalisasiAset(a))
+    .filter(a => {
+      const p = String(a.tanggal_perolehan || a.tanggal_beli || "").slice(0,7);
+      return p && p <= bulan;
+    })
+    .reduce((s,a) => s + Number(a.harga_perolehan || a.harga || 0), 0);
+}
+
+function getSaldoAwalBulan(bulan){
+  const prev = getBulanSebelumnya(bulan);
+
+  if(state.tutupBuku && state.tutupBuku[prev] && state.tutupBuku[prev].isClosed){
+    return Number(state.tutupBuku[prev].saldoAkhir || 0);
+  }
+
+  const awal = getSaldoAwalNeraca();
+  const kasBankAwal = awal.kasAwal + awal.bankAwal;
+
+  const masukSebelum = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) < bulan && t.jenis === "MASUK")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  const keluarSebelum = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) < bulan && t.jenis === "KELUAR")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  const pembelianAsetSebelum = totalPembelianAsetSebelumBulan(bulan);
+
+  return kasBankAwal + masukSebelum - keluarSebelum - pembelianAsetSebelum;
+}
+
+function saldoKasSampai(bulan = null){
+  if(!bulan){
+    bulan = $("filter-bulan") ? $("filter-bulan").value : monthStr();
+  }
+
+  const awal = getSaldoAwalNeraca();
+  const kasBankAwal = awal.kasAwal + awal.bankAwal;
+
+  const masuk = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) <= bulan && t.jenis === "MASUK")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  const keluar = (state.transaksi || [])
+    .filter(t => String(t.tanggal || "").slice(0,7) <= bulan && t.jenis === "KELUAR")
+    .reduce((s,t)=>s+Number(t.nominal||0),0);
+
+  const pembelianAset = totalPembelianAsetSampaiBulan(bulan);
+
+  return kasBankAwal + masuk - keluar - pembelianAset;
+}
+
+function getRingkasanBulan(bulan){
+  const saldoAwal = getSaldoAwalBulan(bulan);
+  const pemasukan = totalMasuk(bulan);
+  const pengeluaran = totalKeluar(bulan);
+  const pembelianAset = totalPembelianAsetBulan(bulan);
+
+  // Saldo kas berkurang oleh pembelian aset.
+  const saldoAkhir = saldoAwal + pemasukan - pengeluaran - pembelianAset;
+
+  // Nilai aset tetap tetap muncul di neraca sebagai nilai buku.
+  const nilaiAset = nilaiBukuAset(bulan);
+
+  // Laba rugi tidak mengakui pembelian aset sebagai biaya.
+  const bebanSusut = bebanSusutBulan(bulan);
+  const labaRugi = pemasukan - pengeluaran - bebanSusut;
+
+  return {
+    saldoAwal,
+    pemasukan,
+    pengeluaran,
+    pembelianAset,
+    saldoAkhir,
+    nilaiAset,
+    bebanSusut,
+    labaRugi
+  };
+}
+
+function updateDashboard(){
+  const b = typeof getPeriodeAktif === "function" ? getPeriodeAktif() : ($("filter-bulan") ? $("filter-bulan").value : monthStr());
+  const r = getRingkasanBulan(b);
+
+  if($("m-in")) $("m-in").innerText = formatRupiah(r.pemasukan);
+  if($("m-out")) $("m-out").innerText = formatRupiah(r.pengeluaran);
+  if($("m-kas")) $("m-kas").innerText = formatRupiah(r.saldoAkhir);
+  if($("m-aset")) $("m-aset").innerText = formatRupiah(r.nilaiAset);
+}
+
+function lapArusKas(b){
+  setReportHeader("LAPORAN ARUS KAS", b);
+  const r = getRingkasanBulan(b);
+
+  $("rep-content").innerHTML = `
+  <table class="report-table">
+    <thead>
+      <tr>
+        <th>Uraian</th>
+        <th class="text-right">Nominal</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Saldo Kas Awal Periode</td><td class="text-right">${formatRupiah(r.saldoAwal)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">Arus Kas Operasional</td></tr>
+      <tr><td style="padding-left:2rem">Penerimaan Kas dari Kegiatan Usaha</td><td class="text-right">${formatRupiah(r.pemasukan)}</td></tr>
+      <tr><td style="padding-left:2rem">Pengeluaran Kas Operasional</td><td class="text-right">${formatRupiah(r.pengeluaran)}</td></tr>
+      <tr class="row-total"><td>Kas Bersih dari Operasional</td><td class="text-right">${formatRupiah(r.pemasukan-r.pengeluaran)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">Arus Kas Investasi</td></tr>
+      <tr><td style="padding-left:2rem">Pembelian Inventaris / Aset Tetap</td><td class="text-right">(${formatRupiah(r.pembelianAset)})</td></tr>
+      <tr class="row-total"><td>Kas Bersih dari Investasi</td><td class="text-right">(${formatRupiah(r.pembelianAset)})</td></tr>
+
+      <tr class="row-total"><td>Kenaikan / Penurunan Kas Bersih</td><td class="text-right">${formatRupiah(r.pemasukan-r.pengeluaran-r.pembelianAset)}</td></tr>
+      <tr class="row-total"><td>Saldo Kas Akhir Periode</td><td class="text-right">${formatRupiah(r.saldoAkhir)}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+function lapNeraca(b){
+  setReportHeader("LAPORAN POSISI KEUANGAN / NERACA", b);
+
+  const r = getRingkasanBulan(b);
+  const awal = getSaldoAwalNeraca();
+
+  const kas = r.saldoAkhir;
+  const piutang = awal.piutangAwal;
+  const persediaan = awal.persediaanAwal;
+  const asetTetap = r.nilaiAset;
+
+  const totalAset = kas + piutang + persediaan + asetTetap;
+
+  const utang = awal.utangAwal;
+  const modal = awal.modalDesa;
+  const labaDitahan = getLabaDitahanNeraca();
+  const labaBerjalan = r.labaRugi;
+
+  const totalEkuitas = modal + labaDitahan + labaBerjalan;
+  const totalPasiva = utang + totalEkuitas;
+  const selisih = totalAset - totalPasiva;
+  const ok = Math.abs(selisih) < 1;
+
+  $("rep-content").innerHTML = `
+  <table class="report-table">
+    <thead><tr><th>ASET</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">ASET LANCAR</td></tr>
+      <tr><td style="padding-left:2rem">Kas dan Setara Kas</td><td class="text-right">${formatRupiah(kas)}</td></tr>
+      <tr><td style="padding-left:2rem">Piutang Usaha</td><td class="text-right">${formatRupiah(piutang)}</td></tr>
+      <tr><td style="padding-left:2rem">Persediaan</td><td class="text-right">${formatRupiah(persediaan)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">ASET TETAP</td></tr>
+      <tr><td style="padding-left:2rem">Aset Tetap Bersih</td><td class="text-right">${formatRupiah(asetTetap)}</td></tr>
+
+      <tr class="row-total"><td>TOTAL ASET</td><td class="text-right">${formatRupiah(totalAset)}</td></tr>
+    </tbody>
+  </table>
+
+  <br>
+
+  <table class="report-table">
+    <thead><tr><th>LIABILITAS DAN EKUITAS</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">LIABILITAS</td></tr>
+      <tr><td style="padding-left:2rem">Utang Awal / Utang Usaha</td><td class="text-right">${formatRupiah(utang)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">EKUITAS</td></tr>
+      <tr><td style="padding-left:2rem">Modal Desa / Penyertaan Modal</td><td class="text-right">${formatRupiah(modal)}</td></tr>
+      <tr><td style="padding-left:2rem">Saldo Laba Ditahan Awal</td><td class="text-right">${formatRupiah(labaDitahan)}</td></tr>
+      <tr><td style="padding-left:2rem">Laba/Rugi Periode Berjalan</td><td class="text-right">${formatRupiah(labaBerjalan)}</td></tr>
+
+      <tr class="row-total"><td>TOTAL LIABILITAS DAN EKUITAS</td><td class="text-right">${formatRupiah(totalPasiva)}</td></tr>
+      <tr><td>Selisih</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${formatRupiah(selisih)}</td></tr>
+      <tr class="row-total"><td>Status</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${ok ? "BALANCE" : "PERLU CEK SALDO AWAL / PEMBELIAN ASET"}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+setTimeout(function(){
+  renderAll();
+}, 700);
+
+
+// ======================================================
+// FIX FINAL RELOAD DATA, ANGKA, TANGGAL, EDIT PERIODE
+// ======================================================
+// Masalah yang diperbaiki:
+// 1. Inventaris setelah aplikasi ditutup/dibuka lagi nilainya jadi 0.
+// 2. Nominal transaksi kadang berubah selisih Rp1 karena parsing/rounding.
+// 3. Edit transaksi ditolak karena tanggal periode dianggap beda,
+//    padahal masih bulan yang sama.
+
+function angkaAman(v){
+  if(v === null || v === undefined || v === "") return 0;
+  if(typeof v === "number") return Math.round(v);
+
+  let s = String(v).trim();
+
+  // hilangkan format rupiah/spasi/titik pemisah ribuan
+  s = s.replace(/Rp/gi, "")
+       .replace(/\s/g, "")
+       .replace(/\./g, "")
+       .replace(/,/g, ".");
+
+  const n = Number(s);
+  if(isNaN(n)) return 0;
+
+  return Math.round(n);
+}
+
+function tanggalAman(v){
+  if(!v) return "";
+
+  if(v instanceof Date && !isNaN(v)){
+    const y = v.getFullYear();
+    const m = String(v.getMonth()+1).padStart(2,"0");
+    const d = String(v.getDate()).padStart(2,"0");
+    return `${y}-${m}-${d}`;
+  }
+
+  let s = String(v).trim();
+
+  // Dari GAS kadang keluar: 2026-01-02T00:00:00.000Z
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)){
+    return s.slice(0,10);
+  }
+
+  // Format Indonesia: dd/mm/yyyy atau dd-mm-yyyy
+  let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m){
+    return `${m[3]}-${String(m[2]).padStart(2,"0")}-${String(m[1]).padStart(2,"0")}`;
+  }
+
+  return s;
+}
+
+function periodeDariTanggal(v){
+  const t = tanggalAman(v);
+  return t ? t.slice(0,7) : "";
+}
+
+function samaPeriode(tgl, periode){
+  return periodeDariTanggal(tgl) === String(periode || "").slice(0,7);
+}
+
+function normalizeTransaksi(t){
+  const tanggal = tanggalAman(t.tanggal);
+  return {
+    ...t,
+    id: String(t.id || "").trim(),
+    tanggal,
+    jenis: String(t.jenis || "").trim().toUpperCase(),
+    kategori: t.kategori || "",
+    keterangan: t.keterangan || "",
+    nominal: angkaAman(t.nominal),
+    petugas: t.petugas || ""
+  };
+}
+
+function normalisasiAset(a){
+  const tanggal = tanggalAman(
+    a.tanggal_perolehan ||
+    a.tanggal_beli ||
+    a.tanggal ||
+    ""
+  );
+
+  const harga = angkaAman(
+    a.harga_perolehan ??
+    a.harga ??
+    a.nilai_perolehan ??
+    a.nominal ??
+    0
+  );
+
+  const residu = angkaAman(
+    a.nilai_residu ??
+    a.sisa ??
+    0
+  );
+
+  let umurTahun = Number(
+    a.umur_manfaat_tahun ??
+    a.umur_tahun ??
+    0
+  );
+
+  let umurBulan = Number(
+    a.umur_manfaat_bulan ??
+    a.umur_bulan ??
+    a.umur ??
+    0
+  );
+
+  if(!umurBulan && umurTahun) umurBulan = umurTahun * 12;
+  if(!umurTahun && umurBulan) umurTahun = umurBulan / 12;
+  if(!umurBulan) umurBulan = 48;
+  if(!umurTahun) umurTahun = umurBulan / 12;
+
+  const susut = angkaAman(
+    a.penyusutan_per_bulan ??
+    ((harga - residu) / umurBulan)
+  );
+
+  const id = String(
+    a.id_aset ||
+    a.id ||
+    a.kode_aset ||
+    ("AST-" + Date.now().toString().slice(-8))
+  );
+
+  return {
+    ...a,
+    id,
+    id_aset: id,
+    nama: a.nama_aset || a.nama || a.nama_barang || "",
+    nama_aset: a.nama_aset || a.nama || a.nama_barang || "",
+    kategori_aset: a.kategori_aset || a.kategori || "Inventaris Lainnya",
+    tanggal_beli: tanggal,
+    tanggal_perolehan: tanggal,
+    harga,
+    harga_perolehan: harga,
+    nilai_residu: residu,
+    sisa: residu,
+    umur: umurBulan,
+    umur_manfaat_tahun: umurTahun,
+    umur_manfaat_bulan: umurBulan,
+    penyusutan_per_bulan: susut,
+    lokasi: a.lokasi || "",
+    kondisi: a.kondisi || "Baik",
+    keterangan: a.keterangan || "",
+    petugas: a.petugas || getNamaPetugasLogin()
+  };
+}
+
+// Paksa semua data lokal lama jadi bersih saat aplikasi dibuka
+function sanitasiStateData(){
+  state.transaksi = (state.transaksi || []).map(normalizeTransaksi);
+  state.aset = (state.aset || []).map(normalisasiAset);
+  state.bank = (state.bank || []).map(function(b){
+    return {
+      ...b,
+      id: String(b.id || "").trim(),
+      tanggal: tanggalAman(b.tanggal),
+      nominal: angkaAman(b.nominal)
+    };
+  });
+  saveLocal();
+}
+
+// Override tarik data dari GAS supaya data yang masuk tidak rusak
+async function tarikDataDariSheets(showNotif=true){
+  if(!state.gasUrl || state.gasUrl === "PASTE_URL_GAS_DISINI"){
+    if(showNotif) alert("URL GAS belum diset.");
+    return;
+  }
+
+  try{
+    showLoading();
+
+    const r = await fetch(state.gasUrl + "?t=" + Date.now(), {
+      method: "GET",
+      cache: "no-store"
+    });
+
+    const res = await r.json();
+
+    if(res.success === false){
+      alert(res.message || "GAS mengembalikan error.");
+      return;
+    }
+
+    if(typeof normalisasiAkunDariGas === "function"){
+      normalisasiAkunDariGas(res);
+    }else if(res.akun){
+      state.akun = res.akun;
+    }
+
+    if(res.transaksi){
+      state.transaksi = (res.transaksi || []).map(normalizeTransaksi);
+    }
+
+    if(res.bank){
+      state.bank = (res.bank || []).map(function(b){
+        return {
+          ...b,
+          id: String(b.id || "").trim(),
+          tanggal: tanggalAman(b.tanggal),
+          nominal: angkaAman(b.nominal)
+        };
+      });
+    }
+
+    if(res.aset){
+      state.aset = (res.aset || []).map(normalisasiAset);
+    }
+
+    if(res.tutup_buku){
+      state.tutupBuku = {};
+      (res.tutup_buku || []).forEach(function(tb){
+        const p = String(tb.periode || "").slice(0,7);
+        if(!p) return;
+        state.tutupBuku[p] = {
+          periode: p,
+          isClosed: String(tb.isClosed).toUpperCase() === "TRUE" || tb.isClosed === true,
+          tanggalTutup: tb.tanggalTutup || "",
+          saldoAwal: angkaAman(tb.saldoAwal),
+          pemasukan: angkaAman(tb.pemasukan),
+          pengeluaran: angkaAman(tb.pengeluaran),
+          saldoAkhir: angkaAman(tb.saldoAkhir),
+          bebanSusut: angkaAman(tb.bebanSusut),
+          labaRugi: angkaAman(tb.labaRugi)
+        };
+      });
+    }
+
+    if(res.profil_sistem){
+      let p = {};
+      (res.profil_sistem || []).forEach(function(row){
+        const k = row.Parameter_Key;
+        if(k) p[k] = row.Value_Data;
+      });
+
+      state.profil = {
+        ...state.profil,
+        ...p,
+        logo: DEFAULT_CONFIG.LOGO_URL
+      };
+
+      [
+        "kasAwal","bankAwal","piutangAwal","persediaanAwal",
+        "asetAwal","akumSusutAwal","utangAwal","modalDesa","labaDitahan"
+      ].forEach(function(k){
+        state.profil[k] = angkaAman(state.profil[k]);
+      });
+
+      // parameter lama jangan ikut hitung
+      state.profil.saldoAwal = 0;
+      state.profil.utang = 0;
+      state.profil.modal = 0;
+    }
+
+    if(res.master){
+      if(res.master.unitUsaha) state.unitUsaha = res.master.unitUsaha;
+      if(res.master.kategoriKeluar) state.kategoriKeluar = res.master.kategoriKeluar;
+    }
+
+    sanitasiStateData();
+    saveLocal();
+    applyBranding();
+    loadProfilForm();
+    renderAll();
+
+    if(showNotif) alert("Data berhasil ditarik dari Google Sheet.");
+  }catch(e){
+    console.error(e);
+    if(showNotif) alert("Gagal tarik data: " + e.message);
+  }finally{
+    hideLoading();
+  }
+}
+
+// Simpan lokal juga harus bersih agar nominal tidak berubah saat reload
+const _saveLocalFixAngka = saveLocal;
+saveLocal = function(){
+  state.transaksi = (state.transaksi || []).map(normalizeTransaksi);
+  state.aset = (state.aset || []).map(normalisasiAset);
+  state.bank = (state.bank || []).map(function(b){
+    return {
+      ...b,
+      tanggal: tanggalAman(b.tanggal),
+      nominal: angkaAman(b.nominal)
+    };
+  });
+
+  _saveLocalFixAngka();
+};
+
+// Override total supaya selalu integer aman
+function totalMasuk(bulan){
+  return (state.transaksi || [])
+    .map(normalizeTransaksi)
+    .filter(t => periodeDariTanggal(t.tanggal) === bulan && t.jenis === "MASUK")
+    .reduce((s,t) => s + angkaAman(t.nominal), 0);
+}
+
+function totalKeluar(bulan){
+  return (state.transaksi || [])
+    .map(normalizeTransaksi)
+    .filter(t => periodeDariTanggal(t.tanggal) === bulan && t.jenis === "KELUAR")
+    .reduce((s,t) => s + angkaAman(t.nominal), 0);
+}
+
+// Edit transaksi: cek periode pakai tanggalAman, bukan string mentah dari Google Sheet
+function mulaiEditTransaksi(id){
+  const t = (state.transaksi || []).map(normalizeTransaksi).find(x => x.id === id);
+  if(!t) return alert("Transaksi tidak ditemukan.");
+
+  const periodeAktif = typeof getPeriodeAktif === "function"
+    ? getPeriodeAktif()
+    : periodeDariTanggal(t.tanggal);
+
+  if(typeof periodeTerkunci === "function" && periodeTerkunci(periodeDariTanggal(t.tanggal))){
+    return alert("Periode transaksi ini sudah tutup buku, tidak bisa diedit.");
+  }
+
+  if(typeof kunciPeriodeAktif !== "undefined" && kunciPeriodeAktif === "YA" && !samaPeriode(t.tanggal, periodeAktif)){
+    return alert(
+      "Edit gagal karena transaksi tidak sesuai periode aktif.\n\n" +
+      "Periode transaksi: " + labelBulanIndonesia(periodeDariTanggal(t.tanggal)) + "\n" +
+      "Periode aktif: " + labelBulanIndonesia(periodeAktif)
+    );
+  }
+
+  state.editTransaksiId = id;
+
+  if($("trx-tanggal")) $("trx-tanggal").value = t.tanggal;
+  if($("trx-jenis")) $("trx-jenis").value = t.jenis;
+  if($("trx-kategori")) $("trx-kategori").value = t.kategori;
+  if($("trx-keterangan")) $("trx-keterangan").value = t.keterangan;
+  if($("trx-nominal")) $("trx-nominal").value = t.nominal;
+
+  alert("Mode edit aktif. Perbaiki data lalu klik Simpan Transaksi.");
+}
+
+function simpanTransaksi(){
+  if(!cekTanggalTransaksiPeriode(true)) return;
+
+  const tanggal = tanggalAman($("trx-tanggal").value);
+  const periode = periodeDariTanggal(tanggal);
+  const periodeAktif = typeof getPeriodeAktif === "function" ? getPeriodeAktif() : periode;
+
+  if(typeof kunciPeriodeAktif !== "undefined" && kunciPeriodeAktif === "YA" && periode !== periodeAktif){
+    return alert("Tanggal transaksi tidak sesuai periode aktif.");
+  }
+
+  if(typeof periodeTerkunci === "function" && periodeTerkunci(periode)){
+    return alert("Periode sudah tutup buku. Transaksi tidak bisa ditambah/diedit.");
+  }
+
+  const data = normalizeTransaksi({
+    id: state.editTransaksiId || ("TRX-" + Date.now()),
+    tanggal: tanggal,
+    jenis: $("trx-jenis").value,
+    kategori: $("trx-kategori").value,
+    keterangan: $("trx-keterangan").value,
+    nominal: $("trx-nominal").value,
+    petugas: getNamaPetugasLogin()
+  });
+
+  if(!data.tanggal || !data.jenis || !data.kategori || !data.nominal){
+    return alert("Lengkapi tanggal, jenis, kategori, dan nominal.");
+  }
+
+  if(state.editTransaksiId){
+    const idx = state.transaksi.findIndex(x => String(x.id) === String(state.editTransaksiId));
+    if(idx >= 0){
+      state.transaksi[idx] = data;
+      // Google Sheet tidak punya update row detail, jadi lakukan delete + add
+      syncToGasBackend("delete_transaksi", {id:data.id});
+      setTimeout(() => syncToGasBackend("add_transaksi", data), 300);
+    }
+    state.editTransaksiId = null;
+  }else{
+    state.transaksi.unshift(data);
+    syncToGasBackend("add_transaksi", data);
+  }
+
+  ["trx-keterangan","trx-nominal"].forEach(id => { if($(id)) $(id).value = ""; });
+  saveLocal();
+  renderAll();
+  alert("Transaksi tersimpan.");
+}
+
+// Hapus transaksi tetap pakai tanggal normal agar tidak salah periode
+function hapusTransaksi(id){
+  const t = (state.transaksi || []).map(normalizeTransaksi).find(x => x.id === id);
+  if(!t) return alert("Transaksi tidak ditemukan.");
+
+  if(typeof periodeTerkunci === "function" && periodeTerkunci(periodeDariTanggal(t.tanggal))){
+    return alert("Periode sudah tutup buku. Transaksi tidak bisa dihapus.");
+  }
+
+  if(!confirm("Hapus transaksi ini?")) return;
+
+  state.transaksi = (state.transaksi || []).filter(x => String(x.id) !== String(id));
+  saveLocal();
+  syncToGasBackend("delete_transaksi", {id:id});
+  renderAll();
+}
+
+// Pastikan tabel inventaris render ulang memakai angka hasil normalisasi
+function renderAset(){
+  const bulan = $("lap-bulan")?.value || (typeof getPeriodeAktif === "function" ? getPeriodeAktif() : monthStr());
+  if(!$("tbl-aset")) return;
+
+  state.aset = (state.aset || []).map(normalisasiAset);
+
+  $("tbl-aset").innerHTML = state.aset.map(raw=>{
+    const a = normalisasiAset(raw);
+    const s = susutAset(a, bulan);
+    return `<tr>
+      <td>${a.id_aset || a.id}</td>
+      <td><span class="badge badge-info">${a.kategori_aset}</span></td>
+      <td>${a.nama_aset}</td>
+      <td>${a.tanggal_perolehan}</td>
+      <td class="text-right">${formatRupiah(a.harga_perolehan)}</td>
+      <td class="text-right">${formatRupiah(a.penyusutan_per_bulan)}</td>
+      <td class="text-right">${formatRupiah(s.akum)}</td>
+      <td class="text-right">${formatRupiah(s.nilai)}</td>
+      <td>${a.lokasi || ""}</td>
+      <td>${a.kondisi || ""}</td>
+      <td><button class="btn-danger" onclick="hapusAset('${a.id_aset || a.id}')">Hapus</button></td>
+    </tr>`;
+  }).join("");
+}
+
+// Jalankan saat awal
+setTimeout(function(){
+  sanitasiStateData();
+  renderAll();
+}, 800);
+
+
+// ======================================================
+// FINAL ALL-IN-ONE FIX INVENTARIS, CASHFLOW, NERACA, RELOAD
+// ======================================================
+// Versi final ini sengaja diletakkan paling bawah agar menimpa fungsi lama.
+// Prinsip:
+// 1. Inventaris / aset tetap TETAP muncul sebagai nilai buku.
+// 2. Pembelian inventaris MENGURANGI kas.
+// 3. Pembelian inventaris masuk ARUS KAS INVESTASI.
+// 4. Laba rugi TIDAK membebankan harga beli aset.
+// 5. Laba rugi hanya membebankan penyusutan.
+// 6. Data aset dari Google Sheet dinormalisasi agar tidak berubah 0 setelah reload.
+
+function angkaFinal(v){
+  if(v === null || v === undefined || v === "") return 0;
+  if(typeof v === "number") return Math.round(v);
+
+  let s = String(v).trim();
+  s = s.replace(/Rp/gi, "")
+       .replace(/\s/g, "")
+       .replace(/\./g, "")
+       .replace(/,/g, ".");
+
+  const n = Number(s);
+  return isNaN(n) ? 0 : Math.round(n);
+}
+
+function tanggalFinal(v){
+  if(!v) return "";
+
+  if(v instanceof Date && !isNaN(v)){
+    const y = v.getFullYear();
+    const m = String(v.getMonth()+1).padStart(2,"0");
+    const d = String(v.getDate()).padStart(2,"0");
+    return `${y}-${m}-${d}`;
+  }
+
+  let s = String(v).trim();
+
+  if(/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0,10);
+
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if(m){
+    return `${m[3]}-${String(m[2]).padStart(2,"0")}-${String(m[1]).padStart(2,"0")}`;
+  }
+
+  return s;
+}
+
+function periodeFinal(v){
+  const t = tanggalFinal(v);
+  return t ? t.slice(0,7) : "";
+}
+
+function normalisasiTransaksiFinal(t){
+  const tanggal = tanggalFinal(t.tanggal);
+  return {
+    ...t,
+    id: String(t.id || "").trim(),
+    tanggal,
+    jenis: String(t.jenis || "").trim().toUpperCase(),
+    kategori: t.kategori || "",
+    keterangan: t.keterangan || "",
+    nominal: angkaFinal(t.nominal),
+    petugas: t.petugas || ""
+  };
+}
+
+function normalisasiAset(a){
+  const id = String(
+    a.id_aset ||
+    a.id ||
+    a.kode_aset ||
+    ("AST-" + Date.now().toString().slice(-8))
+  );
+
+  const tanggal = tanggalFinal(
+    a.tanggal_perolehan ||
+    a.tanggal_beli ||
+    a.tanggal ||
+    ""
+  );
+
+  const harga = angkaFinal(
+    a.harga_perolehan ??
+    a.harga ??
+    a.nilai_perolehan ??
+    a.nominal ??
+    0
+  );
+
+  const residu = angkaFinal(
+    a.nilai_residu ??
+    a.sisa ??
+    a.residu ??
+    0
+  );
+
+  let umurTahun = Number(
+    a.umur_manfaat_tahun ??
+    a.umur_tahun ??
+    0
+  );
+
+  let umurBulan = Number(
+    a.umur_manfaat_bulan ??
+    a.umur_bulan ??
+    a.umur ??
+    0
+  );
+
+  if(!umurBulan && umurTahun) umurBulan = umurTahun * 12;
+  if(!umurTahun && umurBulan) umurTahun = umurBulan / 12;
+
+  if(!umurBulan || umurBulan <= 0) umurBulan = 48;
+  if(!umurTahun || umurTahun <= 0) umurTahun = umurBulan / 12;
+
+  const susutHitung = umurBulan > 0 ? Math.max(0, (harga - residu) / umurBulan) : 0;
+  const susut = angkaFinal(a.penyusutan_per_bulan ?? susutHitung);
+
+  return {
+    ...a,
+    id,
+    id_aset: id,
+    nama: a.nama_aset || a.nama || a.nama_barang || "",
+    nama_aset: a.nama_aset || a.nama || a.nama_barang || "",
+    kategori_aset: a.kategori_aset || a.kategori || "Inventaris Lainnya",
+    tanggal_beli: tanggal,
+    tanggal_perolehan: tanggal,
+    harga,
+    harga_perolehan: harga,
+    nilai_residu: residu,
+    sisa: residu,
+    umur: umurBulan,
+    umur_manfaat_tahun: umurTahun,
+    umur_manfaat_bulan: umurBulan,
+    penyusutan_per_bulan: susut,
+    lokasi: a.lokasi || "",
+    kondisi: a.kondisi || "Baik",
+    keterangan: a.keterangan || "",
+    petugas: a.petugas || (typeof getNamaPetugasLogin === "function" ? getNamaPetugasLogin() : "")
+  };
+}
+
+function normalisasiBankFinal(b){
+  return {
+    ...b,
+    id: String(b.id || "").trim(),
+    tanggal: tanggalFinal(b.tanggal),
+    jenis: b.jenis || "",
+    keterangan: b.keterangan || "",
+    nominal: angkaFinal(b.nominal)
+  };
+}
+
+function sanitasiFinal(){
+  state.transaksi = (state.transaksi || []).map(normalisasiTransaksiFinal);
+  state.aset = (state.aset || []).map(normalisasiAset);
+  state.bank = (state.bank || []).map(normalisasiBankFinal);
+
+  if(state.profil){
+    [
+      "kasAwal","bankAwal","piutangAwal","persediaanAwal",
+      "asetAwal","akumSusutAwal","utangAwal","modalDesa","labaDitahan"
+    ].forEach(k => state.profil[k] = angkaFinal(state.profil[k]));
+
+    state.profil.saldoAwal = 0;
+    state.profil.utang = 0;
+    state.profil.modal = 0;
+  }
+}
+
+function saveLocal(){
+  sanitasiFinal();
+
+  localStorage.setItem("simp_akun", JSON.stringify(state.akun || []));
+  localStorage.setItem("simp_trx", JSON.stringify(state.transaksi || []));
+  localStorage.setItem("simp_bank", JSON.stringify(state.bank || []));
+  localStorage.setItem("simp_aset", JSON.stringify(state.aset || []));
+  localStorage.setItem("simp_unit", JSON.stringify(state.unitUsaha || []));
+  localStorage.setItem("simp_kat", JSON.stringify(state.kategoriKeluar || []));
+  localStorage.setItem("simp_profil", JSON.stringify(state.profil || {}));
+  localStorage.setItem("simp_tutup_buku", JSON.stringify(state.tutupBuku || {}));
+}
+
+function getSaldoAwalNeraca(){
+  if(!state.profil) state.profil = {};
+
+  state.profil.saldoAwal = 0;
+
+  return {
+    kasAwal: angkaFinal(state.profil.kasAwal),
+    bankAwal: angkaFinal(state.profil.bankAwal),
+    piutangAwal: angkaFinal(state.profil.piutangAwal),
+    persediaanAwal: angkaFinal(state.profil.persediaanAwal),
+    asetAwal: angkaFinal(state.profil.asetAwal),
+    akumSusutAwal: angkaFinal(state.profil.akumSusutAwal),
+    utangAwal: angkaFinal(state.profil.utangAwal),
+    modalDesa: angkaFinal(state.profil.modalDesa),
+    labaDitahan: angkaFinal(state.profil.labaDitahan)
+  };
+}
+
+function hitungLabaDitahanAwalOtomatis(){
+  const a = getSaldoAwalNeraca();
+  const asetAwalBersih =
+    a.kasAwal +
+    a.bankAwal +
+    a.piutangAwal +
+    a.persediaanAwal +
+    Math.max(0, a.asetAwal - a.akumSusutAwal);
+
+  return asetAwalBersih - a.utangAwal - a.modalDesa;
+}
+
+function getLabaDitahanNeraca(){
+  const manual = angkaFinal(state.profil.labaDitahan);
+  const auto = hitungLabaDitahanAwalOtomatis();
+  return manual !== 0 ? manual : auto;
+}
+
+function previewPenyusutanAset(){
+  const harga = angkaFinal($("aset-harga") ? $("aset-harga").value : 0);
+  const residu = angkaFinal($("aset-sisa") ? $("aset-sisa").value : 0);
+  const tahun = Number($("aset-umur-tahun") ? $("aset-umur-tahun").value || 0 : 0);
+  const bulan = tahun * 12;
+  const susut = bulan > 0 ? Math.max(0, (harga - residu) / bulan) : 0;
+  if($("aset-preview-susut")) $("aset-preview-susut").value = formatRupiah(susut);
+}
+
+function simpanAset(){
+  if(typeof cekTanggalAsetPeriode === "function" && !cekTanggalAsetPeriode(true)) return;
+
+  const tanggal = tanggalFinal($("aset-tanggal") ? $("aset-tanggal").value : "");
+  const periode = periodeFinal(tanggal);
+
+  if(typeof periodeTerkunci === "function" && periodeTerkunci(periode)){
+    return alert("Periode sudah tutup buku. Aset tidak bisa ditambah.");
+  }
+
+  const tahun = Number($("aset-umur-tahun") ? $("aset-umur-tahun").value || 0 : 0);
+  const bulan = tahun * 12;
+  const harga = angkaFinal($("aset-harga") ? $("aset-harga").value : 0);
+  const residu = angkaFinal($("aset-sisa") ? $("aset-sisa").value : 0);
+  const susut = bulan > 0 ? Math.max(0, (harga - residu) / bulan) : 0;
+
+  const aset = normalisasiAset({
+    id_aset: "AST-" + Date.now().toString().slice(-8),
+    nama_aset: $("aset-nama") ? $("aset-nama").value : "",
+    kategori_aset: $("aset-kategori") ? $("aset-kategori").value : "Inventaris Lainnya",
+    tanggal_perolehan: tanggal,
+    harga_perolehan: harga,
+    nilai_residu: residu,
+    umur_manfaat_tahun: tahun || 4,
+    umur_manfaat_bulan: bulan || 48,
+    penyusutan_per_bulan: susut,
+    lokasi: $("aset-lokasi") ? $("aset-lokasi").value : "",
+    kondisi: $("aset-kondisi") ? $("aset-kondisi").value : "Baik",
+    keterangan: $("aset-keterangan") ? $("aset-keterangan").value : "",
+    petugas: typeof getNamaPetugasLogin === "function" ? getNamaPetugasLogin() : ""
+  });
+
+  if(!aset.nama_aset || !aset.tanggal_perolehan || !aset.harga_perolehan){
+    return alert("Lengkapi nama aset, tanggal perolehan, dan harga perolehan.");
+  }
+
+  state.aset.unshift(aset);
+  saveLocal();
+  syncToGasBackend("add_aset", aset);
+
+  ["aset-nama","aset-harga","aset-keterangan","aset-lokasi"].forEach(id=>{
+    if($(id)) $(id).value = "";
+  });
+  if($("aset-sisa")) $("aset-sisa").value = 0;
+  if($("aset-umur-tahun")) $("aset-umur-tahun").value = 4;
+  previewPenyusutanAset();
+
+  renderAll();
+  alert("Aset tersimpan. Pembelian inventaris mengurangi kas dan masuk Arus Kas Investasi.");
+}
+
+function hapusAset(id){
+  const aset = (state.aset || []).map(normalisasiAset).find(a => (a.id_aset || a.id) === id);
+
+  if(aset && typeof periodeTerkunci === "function" && periodeTerkunci(periodeFinal(aset.tanggal_perolehan))){
+    return alert("Periode sudah tutup buku. Aset tidak bisa dihapus.");
+  }
+
+  if(!confirm("Hapus aset ini?")) return;
+
+  state.aset = (state.aset || []).filter(a => String(a.id_aset || a.id) !== String(id));
+  saveLocal();
+  syncToGasBackend("delete_aset", {id:id, id_aset:id});
+  renderAll();
+}
+
+function susutAset(a, bulan = monthStr()){
+  a = normalisasiAset(a);
+
+  const per = angkaFinal(a.penyusutan_per_bulan);
+  const b0 = periodeFinal(a.tanggal_perolehan);
+
+  if(!b0 || b0 > bulan){
+    return {
+      per: 0,
+      akum: 0,
+      nilai: angkaFinal(a.harga_perolehan)
+    };
+  }
+
+  let sel =
+    (Number(bulan.slice(0,4)) - Number(b0.slice(0,4))) * 12 +
+    (Number(bulan.slice(5,7)) - Number(b0.slice(5,7))) +
+    1;
+
+  if(sel < 0) sel = 0;
+  if(sel > a.umur_manfaat_bulan) sel = a.umur_manfaat_bulan;
+
+  const akum = Math.round(per * sel);
+  const nilai = Math.max(
+    angkaFinal(a.nilai_residu),
+    angkaFinal(a.harga_perolehan) - akum
+  );
+
+  return {per, akum, nilai};
+}
+
+function nilaiBukuAset(bulan = monthStr()){
+  const awal = getSaldoAwalNeraca();
+  const asetAwalBersih = Math.max(0, awal.asetAwal - awal.akumSusutAwal);
+
+  const asetBaru = (state.aset || [])
+    .map(normalisasiAset)
+    .reduce((s,a) => s + susutAset(a, bulan).nilai, 0);
+
+  return asetAwalBersih + asetBaru;
+}
+
+function bebanSusutBulan(bulan){
+  return (state.aset || [])
+    .map(normalisasiAset)
+    .filter(a => {
+      const p = periodeFinal(a.tanggal_perolehan);
+      return p && p <= bulan;
+    })
+    .reduce((s,a) => s + angkaFinal(a.penyusutan_per_bulan), 0);
+}
+
+function totalPembelianAsetBulan(bulan){
+  return (state.aset || [])
+    .map(normalisasiAset)
+    .filter(a => periodeFinal(a.tanggal_perolehan) === bulan)
+    .reduce((s,a) => s + angkaFinal(a.harga_perolehan), 0);
+}
+
+function totalPembelianAsetSebelumBulan(bulan){
+  return (state.aset || [])
+    .map(normalisasiAset)
+    .filter(a => {
+      const p = periodeFinal(a.tanggal_perolehan);
+      return p && p < bulan;
+    })
+    .reduce((s,a) => s + angkaFinal(a.harga_perolehan), 0);
+}
+
+function totalPembelianAsetSampaiBulan(bulan){
+  return (state.aset || [])
+    .map(normalisasiAset)
+    .filter(a => {
+      const p = periodeFinal(a.tanggal_perolehan);
+      return p && p <= bulan;
+    })
+    .reduce((s,a) => s + angkaFinal(a.harga_perolehan), 0);
+}
+
+function totalMasuk(bulan=null){
+  return (state.transaksi || [])
+    .map(normalisasiTransaksiFinal)
+    .filter(t => t.jenis === "MASUK" && (!bulan || periodeFinal(t.tanggal) === bulan))
+    .reduce((s,t) => s + angkaFinal(t.nominal), 0);
+}
+
+function totalKeluar(bulan=null){
+  return (state.transaksi || [])
+    .map(normalisasiTransaksiFinal)
+    .filter(t => t.jenis === "KELUAR" && (!bulan || periodeFinal(t.tanggal) === bulan))
+    .reduce((s,t) => s + angkaFinal(t.nominal), 0);
+}
+
+function getSaldoAwalBulan(bulan){
+  const prev = typeof getBulanSebelumnya === "function" ? getBulanSebelumnya(bulan) : prevMonth(bulan);
+
+  if(state.tutupBuku && state.tutupBuku[prev] && state.tutupBuku[prev].isClosed){
+    return angkaFinal(state.tutupBuku[prev].saldoAkhir);
+  }
+
+  const awal = getSaldoAwalNeraca();
+  const kasBankAwal = awal.kasAwal + awal.bankAwal;
+
+  const masukSebelum = (state.transaksi || [])
+    .map(normalisasiTransaksiFinal)
+    .filter(t => periodeFinal(t.tanggal) < bulan && t.jenis === "MASUK")
+    .reduce((s,t) => s + angkaFinal(t.nominal), 0);
+
+  const keluarSebelum = (state.transaksi || [])
+    .map(normalisasiTransaksiFinal)
+    .filter(t => periodeFinal(t.tanggal) < bulan && t.jenis === "KELUAR")
+    .reduce((s,t) => s + angkaFinal(t.nominal), 0);
+
+  const pembelianAsetSebelum = totalPembelianAsetSebelumBulan(bulan);
+
+  return kasBankAwal + masukSebelum - keluarSebelum - pembelianAsetSebelum;
+}
+
+function saldoKasSampai(bulan=null){
+  if(!bulan){
+    bulan = $("filter-bulan") ? $("filter-bulan").value : monthStr();
+  }
+
+  const awal = getSaldoAwalNeraca();
+  const kasBankAwal = awal.kasAwal + awal.bankAwal;
+
+  const masuk = (state.transaksi || [])
+    .map(normalisasiTransaksiFinal)
+    .filter(t => periodeFinal(t.tanggal) <= bulan && t.jenis === "MASUK")
+    .reduce((s,t) => s + angkaFinal(t.nominal), 0);
+
+  const keluar = (state.transaksi || [])
+    .map(normalisasiTransaksiFinal)
+    .filter(t => periodeFinal(t.tanggal) <= bulan && t.jenis === "KELUAR")
+    .reduce((s,t) => s + angkaFinal(t.nominal), 0);
+
+  const pembelianAset = totalPembelianAsetSampaiBulan(bulan);
+
+  return kasBankAwal + masuk - keluar - pembelianAset;
+}
+
+function getRingkasanBulan(bulan){
+  const saldoAwal = getSaldoAwalBulan(bulan);
+  const pemasukan = totalMasuk(bulan);
+  const pengeluaran = totalKeluar(bulan);
+  const pembelianAset = totalPembelianAsetBulan(bulan);
+  const saldoAkhir = saldoAwal + pemasukan - pengeluaran - pembelianAset;
+  const nilaiAset = nilaiBukuAset(bulan);
+  const bebanSusut = bebanSusutBulan(bulan);
+
+  // Pembelian aset tidak masuk laba rugi.
+  const labaRugi = pemasukan - pengeluaran - bebanSusut;
+
+  return {
+    saldoAwal,
+    pemasukan,
+    pengeluaran,
+    pembelianAset,
+    saldoAkhir,
+    nilaiAset,
+    bebanSusut,
+    labaRugi
+  };
+}
+
+function renderAset(){
+  const bulan = $("lap-bulan")?.value || (typeof getPeriodeAktif === "function" ? getPeriodeAktif() : monthStr());
+  if(!$("tbl-aset")) return;
+
+  state.aset = (state.aset || []).map(normalisasiAset);
+
+  $("tbl-aset").innerHTML = state.aset.map(raw=>{
+    const a = normalisasiAset(raw);
+    const s = susutAset(a, bulan);
+
+    return `<tr>
+      <td>${a.id_aset}</td>
+      <td><span class="badge badge-info">${a.kategori_aset}</span></td>
+      <td>${a.nama_aset}</td>
+      <td>${a.tanggal_perolehan}</td>
+      <td class="text-right">${formatRupiah(a.harga_perolehan)}</td>
+      <td class="text-right">${formatRupiah(a.penyusutan_per_bulan)}</td>
+      <td class="text-right">${formatRupiah(s.akum)}</td>
+      <td class="text-right">${formatRupiah(s.nilai)}</td>
+      <td>${a.lokasi || ""}</td>
+      <td>${a.kondisi || ""}</td>
+      <td><button class="btn-danger btn-small" onclick="hapusAset('${a.id_aset}')">Hapus</button></td>
+    </tr>`;
+  }).join("");
+}
+
+function updateDashboard(){
+  const b = typeof getPeriodeAktif === "function" ? getPeriodeAktif() : ($("filter-bulan") ? $("filter-bulan").value : monthStr());
+  const r = getRingkasanBulan(b);
+
+  if($("m-in")) $("m-in").innerText = formatRupiah(r.pemasukan);
+  if($("m-out")) $("m-out").innerText = formatRupiah(r.pengeluaran);
+  if($("m-kas")) $("m-kas").innerText = formatRupiah(r.saldoAkhir);
+  if($("m-aset")) $("m-aset").innerText = formatRupiah(r.nilaiAset);
+}
+
+function lapLabaRugi(b){
+  setReportHeader("LAPORAN LABA RUGI", b);
+
+  let masuk = {};
+  let keluar = {};
+
+  (state.transaksi || [])
+    .map(normalisasiTransaksiFinal)
+    .filter(t => periodeFinal(t.tanggal) === b)
+    .forEach(t => {
+      if(t.jenis === "MASUK") masuk[t.kategori] = (masuk[t.kategori] || 0) + angkaFinal(t.nominal);
+      if(t.jenis === "KELUAR") keluar[t.kategori] = (keluar[t.kategori] || 0) + angkaFinal(t.nominal);
+    });
+
+  const tin = Object.values(masuk).reduce((a,b)=>a+b,0);
+  const tout = Object.values(keluar).reduce((a,b)=>a+b,0);
+  const sus = bebanSusutBulan(b);
+
+  let h = `<table class="report-table">
+    <thead><tr><th>Uraian</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+    <tr class="row-cat"><td colspan="2">PENDAPATAN</td></tr>`;
+
+  Object.keys(masuk).forEach(k=>{
+    h += `<tr><td style="padding-left:2rem">${k}</td><td class="text-right">${formatRupiah(masuk[k])}</td></tr>`;
+  });
+
+  h += `<tr class="row-total"><td>Total Pendapatan</td><td class="text-right">${formatRupiah(tin)}</td></tr>
+        <tr class="row-cat"><td colspan="2">BEBAN</td></tr>`;
+
+  Object.keys(keluar).forEach(k=>{
+    h += `<tr><td style="padding-left:2rem">${k}</td><td class="text-right">${formatRupiah(keluar[k])}</td></tr>`;
+  });
+
+  h += `<tr><td style="padding-left:2rem">Beban Penyusutan</td><td class="text-right">${formatRupiah(sus)}</td></tr>
+        <tr class="row-total"><td>Total Beban</td><td class="text-right">${formatRupiah(tout+sus)}</td></tr>
+        <tr class="row-total"><td>LABA/RUGI BERSIH</td><td class="text-right">${formatRupiah(tin-tout-sus)}</td></tr>
+        </tbody></table>`;
+
+  $("rep-content").innerHTML = h;
+}
+
+function lapArusKas(b){
+  setReportHeader("LAPORAN ARUS KAS", b);
+  const r = getRingkasanBulan(b);
+
+  $("rep-content").innerHTML = `
+  <table class="report-table">
+    <thead><tr><th>Uraian</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr><td>Saldo Kas Awal Periode</td><td class="text-right">${formatRupiah(r.saldoAwal)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">Arus Kas Operasional</td></tr>
+      <tr><td style="padding-left:2rem">Penerimaan Kas dari Kegiatan Usaha</td><td class="text-right">${formatRupiah(r.pemasukan)}</td></tr>
+      <tr><td style="padding-left:2rem">Pengeluaran Kas Operasional</td><td class="text-right">${formatRupiah(r.pengeluaran)}</td></tr>
+      <tr class="row-total"><td>Kas Bersih dari Operasional</td><td class="text-right">${formatRupiah(r.pemasukan-r.pengeluaran)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">Arus Kas Investasi</td></tr>
+      <tr><td style="padding-left:2rem">Pembelian Inventaris / Aset Tetap</td><td class="text-right">(${formatRupiah(r.pembelianAset)})</td></tr>
+      <tr class="row-total"><td>Kas Bersih dari Investasi</td><td class="text-right">(${formatRupiah(r.pembelianAset)})</td></tr>
+
+      <tr class="row-total"><td>Kenaikan / Penurunan Kas Bersih</td><td class="text-right">${formatRupiah(r.pemasukan-r.pengeluaran-r.pembelianAset)}</td></tr>
+      <tr class="row-total"><td>Saldo Kas Akhir Periode</td><td class="text-right">${formatRupiah(r.saldoAkhir)}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+function lapNeraca(b){
+  setReportHeader("LAPORAN POSISI KEUANGAN / NERACA", b);
+
+  const r = getRingkasanBulan(b);
+  const awal = getSaldoAwalNeraca();
+
+  const kas = r.saldoAkhir;
+  const piutang = awal.piutangAwal;
+  const persediaan = awal.persediaanAwal;
+  const asetTetap = r.nilaiAset;
+  const totalAset = kas + piutang + persediaan + asetTetap;
+
+  const utang = awal.utangAwal;
+  const modal = awal.modalDesa;
+  const labaDitahan = typeof getLabaDitahanNeraca === "function" ? getLabaDitahanNeraca() : angkaFinal(awal.labaDitahan);
+  const labaBerjalan = r.labaRugi;
+
+  const totalEkuitas = modal + labaDitahan + labaBerjalan;
+  const totalPasiva = utang + totalEkuitas;
+  const selisih = totalAset - totalPasiva;
+  const ok = Math.abs(selisih) < 1;
+
+  $("rep-content").innerHTML = `
+  <table class="report-table">
+    <thead><tr><th>ASET</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">ASET LANCAR</td></tr>
+      <tr><td style="padding-left:2rem">Kas dan Setara Kas</td><td class="text-right">${formatRupiah(kas)}</td></tr>
+      <tr><td style="padding-left:2rem">Piutang Usaha</td><td class="text-right">${formatRupiah(piutang)}</td></tr>
+      <tr><td style="padding-left:2rem">Persediaan</td><td class="text-right">${formatRupiah(persediaan)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">ASET TETAP</td></tr>
+      <tr><td style="padding-left:2rem">Aset Tetap Bersih</td><td class="text-right">${formatRupiah(asetTetap)}</td></tr>
+
+      <tr class="row-total"><td>TOTAL ASET</td><td class="text-right">${formatRupiah(totalAset)}</td></tr>
+    </tbody>
+  </table>
+
+  <br>
+
+  <table class="report-table">
+    <thead><tr><th>LIABILITAS DAN EKUITAS</th><th class="text-right">Nominal</th></tr></thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">LIABILITAS</td></tr>
+      <tr><td style="padding-left:2rem">Utang Awal / Utang Usaha</td><td class="text-right">${formatRupiah(utang)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">EKUITAS</td></tr>
+      <tr><td style="padding-left:2rem">Modal Desa / Penyertaan Modal</td><td class="text-right">${formatRupiah(modal)}</td></tr>
+      <tr><td style="padding-left:2rem">Saldo Laba Ditahan Awal</td><td class="text-right">${formatRupiah(labaDitahan)}</td></tr>
+      <tr><td style="padding-left:2rem">Laba/Rugi Periode Berjalan</td><td class="text-right">${formatRupiah(labaBerjalan)}</td></tr>
+
+      <tr class="row-total"><td>TOTAL LIABILITAS DAN EKUITAS</td><td class="text-right">${formatRupiah(totalPasiva)}</td></tr>
+      <tr><td>Selisih</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${formatRupiah(selisih)}</td></tr>
+      <tr class="row-total"><td>Status</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${ok ? "BALANCE" : "PERLU CEK SALDO AWAL / PEMBELIAN ASET"}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+function lapAset(b){
+  setReportHeader("DAFTAR INVENTARIS DAN PENYUSUTAN", b);
+
+  const awal = getSaldoAwalNeraca();
+  let rowsAwal = "";
+
+  if(awal.asetAwal || awal.akumSusutAwal){
+    rowsAwal = `<tr class="row-cat"><td colspan="6">SALDO AWAL ASET PER 1 JANUARI 2026</td></tr>
+      <tr>
+        <td>Aset Tetap Awal</td>
+        <td>-</td>
+        <td class="text-right">${formatRupiah(awal.asetAwal)}</td>
+        <td class="text-right">${formatRupiah(awal.akumSusutAwal)}</td>
+        <td class="text-right">${formatRupiah(Math.max(0, awal.asetAwal-awal.akumSusutAwal))}</td>
+        <td>Saldo awal</td>
+      </tr>`;
+  }
+
+  $("rep-content").innerHTML = `<table class="report-table">
+    <thead><tr><th>Nama Aset</th><th>Tgl Perolehan</th><th class="text-right">Harga</th><th class="text-right">Akum. Susut</th><th class="text-right">Nilai Buku</th><th>Keterangan</th></tr></thead>
+    <tbody>
+      ${rowsAwal}
+      ${(state.aset||[]).map(raw=>{
+        const a = normalisasiAset(raw);
+        const s = susutAset(a,b);
+        return `<tr><td>${a.nama_aset}</td><td>${a.tanggal_perolehan}</td><td class="text-right">${formatRupiah(a.harga_perolehan)}</td><td class="text-right">${formatRupiah(s.akum)}</td><td class="text-right">${formatRupiah(s.nilai)}</td><td>${a.kategori_aset}</td></tr>`;
+      }).join("")}
+    </tbody>
+  </table>`;
+}
+
+async function tarikDataDariSheets(showNotif=true){
+  if(!state.gasUrl || state.gasUrl === "PASTE_URL_GAS_DISINI"){
+    if(showNotif) alert("URL GAS belum diset.");
+    return;
+  }
+
+  try{
+    showLoading();
+
+    const r = await fetch(state.gasUrl + "?t=" + Date.now(), {
+      method: "GET",
+      cache: "no-store"
+    });
+
+    const res = await r.json();
+
+    if(res.success === false){
+      alert(res.message || "GAS mengembalikan error.");
+      return;
+    }
+
+    if(typeof normalisasiAkunDariGas === "function"){
+      normalisasiAkunDariGas(res);
+    }else if(res.akun){
+      state.akun = res.akun;
+    }
+
+    if(res.transaksi){
+      state.transaksi = (res.transaksi || []).map(normalisasiTransaksiFinal);
+    }
+
+    if(res.bank){
+      state.bank = (res.bank || []).map(normalisasiBankFinal);
+    }
+
+    if(res.aset){
+      state.aset = (res.aset || []).map(normalisasiAset);
+    }
+
+    if(res.tutup_buku){
+      state.tutupBuku = {};
+      (res.tutup_buku || []).forEach(function(tb){
+        const p = String(tb.periode || "").slice(0,7);
+        if(!p) return;
+        state.tutupBuku[p] = {
+          periode: p,
+          isClosed: String(tb.isClosed).toUpperCase() === "TRUE" || tb.isClosed === true,
+          tanggalTutup: tb.tanggalTutup || "",
+          saldoAwal: angkaFinal(tb.saldoAwal),
+          pemasukan: angkaFinal(tb.pemasukan),
+          pengeluaran: angkaFinal(tb.pengeluaran),
+          saldoAkhir: angkaFinal(tb.saldoAkhir),
+          bebanSusut: angkaFinal(tb.bebanSusut),
+          labaRugi: angkaFinal(tb.labaRugi)
+        };
+      });
+    }
+
+    if(res.profil_sistem){
+      let p = {};
+      (res.profil_sistem || []).forEach(function(row){
+        const k = row.Parameter_Key;
+        if(k) p[k] = row.Value_Data;
+      });
+
+      state.profil = {
+        ...state.profil,
+        ...p,
+        logo: DEFAULT_CONFIG.LOGO_URL
+      };
+
+      [
+        "kasAwal","bankAwal","piutangAwal","persediaanAwal",
+        "asetAwal","akumSusutAwal","utangAwal","modalDesa","labaDitahan"
+      ].forEach(k => state.profil[k] = angkaFinal(state.profil[k]));
+
+      state.profil.saldoAwal = 0;
+      state.profil.utang = 0;
+      state.profil.modal = 0;
+    }
+
+    if(res.master){
+      if(res.master.unitUsaha) state.unitUsaha = res.master.unitUsaha;
+      if(res.master.kategoriKeluar) state.kategoriKeluar = res.master.kategoriKeluar;
+    }
+
+    saveLocal();
+    applyBranding();
+    loadProfilForm();
+    renderAll();
+
+    if(showNotif) alert("Data berhasil ditarik dari Google Sheet.");
+  }catch(e){
+    console.error(e);
+    if(showNotif) alert("Gagal tarik data: " + e.message);
+  }finally{
+    hideLoading();
+  }
+}
+
+setTimeout(function(){
+  sanitasiFinal();
+  previewPenyusutanAset();
+  renderAll();
+}, 900);
+
 </script>
 </body>
 </html>
