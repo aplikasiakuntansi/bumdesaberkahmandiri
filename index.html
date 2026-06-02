@@ -4801,6 +4801,213 @@ setTimeout(async function(){
   }
 }, 1800);
 
+
+// ======================================================
+// PATCH FINAL ASET TETAP AWAL MASUK DASHBOARD + NERACA
+// ======================================================
+// Masalah:
+// - Aset Tetap Awal tersimpan di Profil_Sistem.
+// - Dashboard Nilai Buku Aset hanya membaca inventaris baru.
+// Solusi:
+// - Nilai buku aset = aset tetap awal bersih + inventaris baru.
+// - Aset tetap awal bersih = asetAwal - akumSusutAwal.
+// - Pembelian inventaris baru tetap mengurangi kas.
+// - Aset lama dari saldo awal tidak mengurangi kas lagi.
+
+function nilaiBukuAsetBaruSaja(bulan = monthStr()){
+  return (state.aset || [])
+    .map(typeof normalisasiAset === "function" ? normalisasiAset : (a => a))
+    .reduce((s,a) => {
+      const hit = susutAset(a, bulan);
+      return s + Number(hit.nilai || 0);
+    }, 0);
+}
+
+function nilaiBukuAsetAwal(){
+  const awal = typeof getSaldoAwalNeraca === "function"
+    ? getSaldoAwalNeraca()
+    : {
+        asetAwal: Number(state.profil.asetAwal || 0),
+        akumSusutAwal: Number(state.profil.akumSusutAwal || 0)
+      };
+
+  return Math.max(
+    0,
+    Number(awal.asetAwal || 0) - Number(awal.akumSusutAwal || 0)
+  );
+}
+
+function nilaiBukuAset(bulan = monthStr()){
+  return nilaiBukuAsetAwal() + nilaiBukuAsetBaruSaja(bulan);
+}
+
+function getRingkasanBulan(bulan){
+  const saldoAwal = getSaldoAwalBulan(bulan);
+  const pemasukan = totalMasuk(bulan);
+  const pengeluaran = totalKeluar(bulan);
+  const pembelianAset = typeof totalPembelianAsetBulan === "function"
+    ? totalPembelianAsetBulan(bulan)
+    : 0;
+
+  const saldoAkhir = saldoAwal + pemasukan - pengeluaran - pembelianAset;
+
+  // KUNCI REVISI:
+  // Nilai aset sekarang termasuk saldo awal aset tetap.
+  const nilaiAset = nilaiBukuAset(bulan);
+
+  const bebanSusut = bebanSusutBulan(bulan);
+  const labaRugi = pemasukan - pengeluaran - bebanSusut;
+
+  return {
+    saldoAwal,
+    pemasukan,
+    pengeluaran,
+    pembelianAset,
+    saldoAkhir,
+    nilaiAset,
+    bebanSusut,
+    labaRugi
+  };
+}
+
+function updateDashboard(){
+  const b = typeof getPeriodeAktif === "function"
+    ? getPeriodeAktif()
+    : ($("filter-bulan") ? $("filter-bulan").value : monthStr());
+
+  const r = getRingkasanBulan(b);
+
+  if($("m-in")) $("m-in").innerText = formatRupiah(r.pemasukan);
+  if($("m-out")) $("m-out").innerText = formatRupiah(r.pengeluaran);
+  if($("m-kas")) $("m-kas").innerText = formatRupiah(r.saldoAkhir);
+  if($("m-aset")) $("m-aset").innerText = formatRupiah(r.nilaiAset);
+}
+
+function lapNeraca(b){
+  setReportHeader("LAPORAN POSISI KEUANGAN / NERACA", b);
+
+  const r = getRingkasanBulan(b);
+  const awal = getSaldoAwalNeraca();
+
+  const kas = r.saldoAkhir;
+  const piutang = awal.piutangAwal;
+  const persediaan = awal.persediaanAwal;
+  const asetTetapAwalBersih = nilaiBukuAsetAwal();
+  const asetTetapBaruBersih = nilaiBukuAsetBaruSaja(b);
+  const asetTetap = r.nilaiAset;
+
+  const totalAset = kas + piutang + persediaan + asetTetap;
+
+  const utang = awal.utangAwal;
+  const modal = awal.modalDesa;
+  const labaDitahan = getLabaDitahanNeraca();
+  const labaBerjalan = r.labaRugi;
+
+  const totalPasiva = utang + modal + labaDitahan + labaBerjalan;
+  const selisih = totalAset - totalPasiva;
+  const ok = Math.abs(selisih) < 1;
+
+  $("rep-content").innerHTML = `
+  <table class="report-table">
+    <thead>
+      <tr>
+        <th>ASET</th>
+        <th class="text-right">Nominal</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">ASET LANCAR</td></tr>
+      <tr><td style="padding-left:2rem">Kas dan Setara Kas</td><td class="text-right">${formatRupiah(kas)}</td></tr>
+      <tr><td style="padding-left:2rem">Piutang Usaha</td><td class="text-right">${formatRupiah(piutang)}</td></tr>
+      <tr><td style="padding-left:2rem">Persediaan</td><td class="text-right">${formatRupiah(persediaan)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">ASET TETAP</td></tr>
+      <tr><td style="padding-left:2rem">Aset Tetap Awal Bersih</td><td class="text-right">${formatRupiah(asetTetapAwalBersih)}</td></tr>
+      <tr><td style="padding-left:2rem">Inventaris Baru Bersih</td><td class="text-right">${formatRupiah(asetTetapBaruBersih)}</td></tr>
+      <tr><td style="padding-left:2rem">Total Aset Tetap Bersih</td><td class="text-right">${formatRupiah(asetTetap)}</td></tr>
+
+      <tr class="row-total"><td>TOTAL ASET</td><td class="text-right">${formatRupiah(totalAset)}</td></tr>
+    </tbody>
+  </table>
+
+  <br>
+
+  <table class="report-table">
+    <thead>
+      <tr>
+        <th>LIABILITAS DAN EKUITAS</th>
+        <th class="text-right">Nominal</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr class="row-cat"><td colspan="2">LIABILITAS</td></tr>
+      <tr><td style="padding-left:2rem">Utang Awal / Utang Usaha</td><td class="text-right">${formatRupiah(utang)}</td></tr>
+
+      <tr class="row-cat"><td colspan="2">EKUITAS</td></tr>
+      <tr><td style="padding-left:2rem">Modal Desa / Penyertaan Modal</td><td class="text-right">${formatRupiah(modal)}</td></tr>
+      <tr><td style="padding-left:2rem">Saldo Laba Ditahan Awal</td><td class="text-right">${formatRupiah(labaDitahan)}</td></tr>
+      <tr><td style="padding-left:2rem">Laba/Rugi Periode Berjalan</td><td class="text-right">${formatRupiah(labaBerjalan)}</td></tr>
+
+      <tr class="row-total"><td>TOTAL LIABILITAS DAN EKUITAS</td><td class="text-right">${formatRupiah(totalPasiva)}</td></tr>
+      <tr><td>Selisih</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${formatRupiah(selisih)}</td></tr>
+      <tr class="row-total"><td>Status</td><td class="text-right ${ok ? "text-success" : "text-danger"}">${ok ? "BALANCE" : "PERLU CEK SALDO AWAL / ASET"}</td></tr>
+    </tbody>
+  </table>`;
+}
+
+function lapAset(b){
+  setReportHeader("DAFTAR INVENTARIS DAN PENYUSUTAN", b);
+
+  const awal = typeof getSaldoAwalNeraca === "function"
+    ? getSaldoAwalNeraca()
+    : {asetAwal:0, akumSusutAwal:0};
+
+  const awalRows = (Number(awal.asetAwal || 0) || Number(awal.akumSusutAwal || 0))
+    ? `<tr class="row-cat"><td colspan="6">SALDO AWAL ASET TETAP</td></tr>
+       <tr>
+         <td>Aset Tetap Awal</td>
+         <td>Saldo Awal</td>
+         <td>-</td>
+         <td class="text-right">${formatRupiah(awal.asetAwal)}</td>
+         <td class="text-right">${formatRupiah(awal.akumSusutAwal)}</td>
+         <td class="text-right">${formatRupiah(nilaiBukuAsetAwal())}</td>
+       </tr>`
+    : "";
+
+  const rows = (state.aset || []).map(typeof normalisasiAset === "function" ? normalisasiAset : (a => a));
+
+  $("rep-content").innerHTML = `<table class="report-table">
+    <thead>
+      <tr>
+        <th>Nama Aset</th>
+        <th>Kategori</th>
+        <th>Tgl Perolehan</th>
+        <th class="text-right">Harga</th>
+        <th class="text-right">Akum. Susut</th>
+        <th class="text-right">Nilai Buku</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${awalRows}
+      ${rows.map(a => {
+        const s = susutAset(a,b);
+        return `<tr>
+          <td>${a.nama_aset || a.nama || ""}</td>
+          <td>${a.kategori_aset || a.kategori || ""}</td>
+          <td>${a.tanggal_perolehan || a.tanggal_beli || ""}</td>
+          <td class="text-right">${formatRupiah(a.harga_perolehan || a.harga || 0)}</td>
+          <td class="text-right">${formatRupiah(s.akum)}</td>
+          <td class="text-right">${formatRupiah(s.nilai)}</td>
+        </tr>`;
+      }).join("")}
+    </tbody>
+  </table>`;
+}
+
+setTimeout(function(){
+  if(typeof renderAll === "function") renderAll();
+}, 700);
+
 </script>
 </body>
 </html>
